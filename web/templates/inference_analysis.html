@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-12">
+  <h1 class="text-4xl font-bold text-center text-[var(--tsar-accent)] mb-6">Analyse par Composants</h1>
+  <p class="text-center text-gray-400 mb-8">
+    Sélectionnez un rapport. L'analyseur va extraire les logiciels et leurs versions, puis interroger l'API NVD pour trouver les vulnérabilités connues.
+  </p>
+
+  <form method="post" class="bg-translucent p-8 rounded-2xl shadow-lg flex items-center gap-4">
+    <select name="report_id" required class="flex-1 px-4 py-3 bg-[#111] border border-[#333] rounded-lg text-white focus:ring-2 focus:ring-[var(--tsar-accent)]">
+      <option value="" disabled selected>Sélectionnez un rapport à analyser...</option>
+      {% for report in reports %}
+        <option value="{{ report.id }}">{{ report.filename }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="px-8 py-3 bg-[var(--tsar-accent)] text-black font-bold rounded-lg hover:bg-[var(--tsar-accent2)] transition">
+      Lancer l'Analyse
+    </button>
+  </form>
+
+  {% if job_id %}
+  <div id="result-container" class="mt-8" data-job-id="{{ job_id }}">
+    <div id="loading-state" class="text-center bg-translucent p-8 rounded-2xl shadow-lg">
+      <div class="inline-flex items-center">
+        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-[var(--tsar-accent)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <span>Analyse de <strong>{{ analysis_target }}</strong> en cours... (peut prendre du temps)</span>
+      </div>
+    </div>
+    <div id="success-state" class="hidden space-y-4"></div>
+    <div id="error-state" class="hidden text-center text-red-400 bg-red-900/20 p-4 rounded-lg"></div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const resultContainer = document.getElementById('result-container');
+  if (!resultContainer) return;
+
+  const jobId = resultContainer.dataset.jobId;
+  const loadingState = document.getElementById('loading-state');
+  const successState = document.getElementById('success-state');
+  const errorState = document.getElementById('error-state');
+
+  function pollStatus() {
+    const interval = setInterval(() => {
+      fetch(`/job/status/${jobId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.state === 'SUCCESS') {
+            clearInterval(interval);
+            loadingState.style.display = 'none';
+            displayResults(data.result);
+          } else if (data.state === 'FAILURE') {
+            clearInterval(interval);
+            loadingState.style.display = 'none';
+            errorState.textContent = data.error || 'Une erreur inconnue est survenue.';
+            errorState.style.display = 'block';
+          }
+        })
+        .catch(err => {
+          clearInterval(interval);
+          loadingState.style.display = 'none';
+          errorState.textContent = 'Erreur de communication avec le serveur.';
+          errorState.style.display = 'block';
+        });
+    }, 5000);
+  }
+
+  function displayResults(results) {
+    if (results.length === 0) {
+        successState.innerHTML = `<div class="bg-translucent p-8 rounded-2xl text-center text-gray-400">Aucun composant exploitable n'a été identifié ou aucune CVE n'a été trouvée pour les composants détectés.</div>`;
+        successState.style.display = 'block';
+        return;
+    }
+
+    let finalHtml = `<h2 class="text-2xl font-bold text-[var(--tsar-accent)] mb-4">Résultats de l'Analyse par Composants</h2>`;
+    results.forEach(item => {
+        finalHtml += `
+            <div class="bg-[#111] p-4 rounded-lg mb-4">
+                <h3 class="text-lg font-semibold text-white">Composant Détecté : <span class="text-amber-400">${item.component}</span></h3>
+                <p class="text-sm text-gray-400">${item.count} CVE(s) potentiellement associée(s) trouvée(s) :</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    ${item.cves.map(cve => `<a href="/cve-analysis?cve_id=${cve}" target="_blank" class="text-xs bg-gray-700 text-gray-200 px-2 py-1 rounded hover:bg-[var(--tsar-accent)] hover:text-black transition">${cve}</a>`).join('')}
+                </div>
+            </div>
+        `;
+    });
+    successState.innerHTML = finalHtml;
+    successState.style.display = 'block';
+  }
+
+  pollStatus();
+});
+</script>
+{% endblock %}

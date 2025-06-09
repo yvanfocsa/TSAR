@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-12 prose prose-invert prose-lg">
+  <h1 class="text-[var(--tsar-accent)]">Guide d'Utilisation de TSAR Toolbox</h1>
+  
+  <h2>Introduction</h2>
+  <p>
+    Bienvenue dans TSAR Toolbox, votre plateforme centralisée pour les tests d'intrusion. Ce guide vous expliquera comment utiliser les différentes fonctionnalités de l'outil.
+  </p>
+
+  <h2>La Méthodologie PTES</h2>
+  <p>
+    TSAR est structuré selon le <strong>Penetration Testing Execution Standard (PTES)</strong>, une méthodologie reconnue qui divise un pentest en plusieurs phases logiques. Les modules de la toolbox sont organisés pour suivre ce flux de travail.
+  </p>
+  <ul>
+    <li><strong>Phase 2: Intelligence Gathering</strong> - Collecte d'informations sur la cible.</li>
+    <li><strong>Phase 4: Vulnerability Analysis</strong> - Scan actif pour trouver des failles.</li>
+    <li><strong>Phase 5: Exploitation</strong> - Tentative d'exploitation des failles.</li>
+    <li><strong>Phase 6: Post-Exploitation</strong> - Actions après avoir obtenu un accès.</li>
+    <li><strong>Phase 7: Reporting</strong> - Génération du rapport final.</li>
+  </ul>
+
+  <h2>Comment utiliser un module ?</h2>
+  <ol>
+    <li>Naviguez vers la page <strong>Modules</strong> depuis la barre latérale.</li>
+    <li>Choisissez un module correspondant à la phase de votre pentest.</li>
+    <li>Cliquez sur "Lancer".</li>
+    <li>Remplissez les champs requis dans le formulaire (cible, mode, etc.).</li>
+    <li>Cliquez sur "Lancer le Scan". La tâche sera exécutée en arrière-plan.</li>
+    <li>Une fois le scan terminé, vous serez redirigé vers la page <strong>Rapports</strong> où vous pourrez télécharger le PDF chiffré contenant les résultats.</li>
+  </ol>
+
+  <h2>Analyse de CVE</h2>
+  <p>
+    La page <strong>Analyse CVE</strong> vous permet de transformer un simple identifiant de vulnérabilité (ex: CVE-2021-44228) en un scénario d'attaque complet, mappé sur le framework MITRE ATT&CK. C'est un outil puissant pour comprendre l'impact réel d'une faille.
+  </p>
+
+  <h2>Tâches Planifiées</h2>
+  <p>
+    Automatisez vos scans de routine. Vous pouvez planifier des scans quotidiens, hebdomadaires ou mensuels sur des cibles spécifiques. Les rapports générés apparaîtront automatiquement dans votre section Rapports.
+  </p>
+</div>
+{% endblock %}

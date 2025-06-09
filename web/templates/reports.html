@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-12 space-y-12">
+
+  {# ===== TITRE ===== #}
+  <h1 class="text-4xl font-extrabold text-[var(--tsar-accent)] mb-6 text-center">
+    Mes Rapports & Générateur
+  </h1>
+
+  {# ===== ZONE DE NOTIFICATION (pour le polling) ===== #}
+  <div id="notification-zone" 
+       class="hidden fixed top-5 right-5 bg-translucent p-4 rounded-lg shadow-lg border-l-4 border-[var(--tsar-accent)] z-50">
+    <div class="flex items-center">
+      <!-- Spinner -->
+      <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-[var(--tsar-accent)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <!-- Message -->
+      <span id="notification-message" class="text-white">Génération du rapport en cours...</span>
+    </div>
+  </div>
+
+  {# ===== FORMULAIRE “Générateur de Rapport” ===== #}
+  {% if mod_report %}
+    <div class="bg-[var(--tsar-card)] p-8 rounded-3xl shadow-2xl">
+      <h2 class="text-2xl font-bold mb-4 text-[var(--tsar-accent)]">Générateur de Rapport</h2>
+      <p class="text-gray-400 mb-6">
+        Sélectionnez la cible et les sections à inclure, puis cliquez sur Générer.
+      </p>
+
+      <form id="report-generator-form"
+            action="{{ url_for('routes.module_run', name=mod_report.name) }}"
+            method="post"
+            class="space-y-8">
+
+        {# Sélecteur de cibles existantes #}
+        <div>
+          <label for="target"
+                 class="block text-sm font-medium mb-2 text-gray-200">
+            Cible
+          </label>
+          <select name="target"
+                  id="target"
+                  required
+                  class="w-full px-4 py-2 bg-[#111] border border-[#333] rounded focus:ring-[var(--tsar-accent)]">
+            {% if target_list %}
+              {% for t in target_list %}
+                <option value="{{ t }}">{{ t }}</option>
+              {% endfor %}
+            {% else %}
+              <option disabled selected>Aucune cible enregistrée</option>
+            {% endif %}
+          </select>
+        </div>
+
+        {# Cases à cocher “Sections du rapport” #}
+        <div>
+          <h3 class="text-xl font-semibold text-gray-200 mb-4">Sections du rapport</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {% for section in mod_report.schema[1].choices %}
+              <label class="flex items-center p-4 bg-[#1e1e1e] hover:bg-[#2a2a2a] rounded-lg cursor-pointer transition">
+                <input type="checkbox"
+                       name="sections"
+                       value="{{ section }}"
+                       checked
+                       class="h-6 w-6 text-[var(--tsar-accent)] rounded focus:ring-[var(--tsar-accent)]">
+                <span class="ml-4 text-lg text-gray-200 font-medium capitalize">
+                  {{ section }}
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        {# Bouton Générer #}
+        <div class="pt-6 border-t border-[#333] flex justify-center">
+          <button type="submit"
+                  id="generate-btn"
+                  class="flex items-center gap-3 px-10 py-3 bg-[var(--tsar-accent)] text-black font-bold rounded-2xl shadow-lg hover:bg-[var(--tsar-accent2)] transition disabled:opacity-50 disabled:cursor-not-allowed">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 class="h-6 w-6"
+                 fill="none"
+                 viewBox="0 0 24 24"
+                 stroke="currentColor">
+              <path stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7" />
+            </svg>
+            Générer PDF
+          </button>
+        </div>
+      </form>
+    </div>
+  {% else %}
+    <p class="text-center text-gray-400">Module “Générateur de Rapport” introuvable.</p>
+  {% endif %}
+
+  {# ===== LISTE DES RAPPORTS EXISTANTS ===== #}
+  <div class="bg-[var(--tsar-card)] p-8 rounded-3xl shadow-2xl">
+    
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-semibold text-[var(--tsar-accent)]">Mes Rapports</h2>
+      <a href="{{ url_for('routes.compare_reports') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-[var(--tsar-card)] text-[var(--tsar-accent)] border border-[var(--tsar-accent)] rounded-lg hover:bg-[var(--tsar-accent)] hover:text-black transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        Comparer des rapports
+      </a>
+    </div>
+
+    {% if reports %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {% for r in reports %}
+          <div class="bg-[#111] p-6 rounded-2xl shadow-inner hover:shadow-lg transition flex flex-col justify-between max-w-sm overflow-hidden">
+            <div>
+              <h3 class="text-xl font-semibold text-[var(--tsar-text)] mb-2 break-words">
+                {{ r.filename }}
+              </h3>
+              <p class="text-gray-400 text-sm">Généré le {{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            </div>
+            
+            <!-- MODIFICATION : Ajout du bouton supprimer -->
+            <div class="mt-4 flex justify-end items-center gap-3">
+              <!-- Bouton Supprimer -->
+              <form action="{{ url_for('routes.delete_report', rid=r.id) }}" 
+                    method="post"
+                    onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce rapport définitivement ?');">
+                <button type="submit"
+                        class="p-2 rounded-lg text-gray-400 hover:bg-red-600 hover:text-white transition-colors"
+                        title="Supprimer le rapport">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </form>
+            
+              <!-- Bouton Télécharger -->
+              <a href="{{ url_for('routes.download_report', rid=r.id) }}"
+                 class="inline-flex items-center gap-2 px-4 py-2 bg-[var(--tsar-accent)] text-black font-medium rounded-lg
+                        hover:bg-[var(--tsar-accent2)] hover:text-black transition btn-anim">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 20h18" />
+                  <path d="M12 3v14" />
+                  <path d="M8 13l4 4 4-4" />
+                </svg>
+                Télécharger
+              </a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="bg-[#111] p-8 rounded-2xl shadow-inner text-center text-gray-400">
+        <svg xmlns="http://www.w3.org/2000/svg"
+             class="mx-auto h-12 w-12 text-gray-500 mb-4"
+             fill="none"
+             viewBox="0 0 24 24"
+             stroke="currentColor">
+          <path stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m4 0v-2a4 4 0 00-3-3.87M5 17v-2a4 4 0 013-3.87" />
+        </svg>
+        <p>Vous n'avez aucun rapport pour le moment.<br>
+           Utilisez le générateur ci-dessus pour en créer.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- On ajoute le script de polling ici -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('report-generator-form');
+  const generateBtn = document.getElementById('generate-btn');
+  const notificationZone = document.getElementById('notification-zone');
+  const notificationMessage = document.getElementById('notification-message');
+
+  if (form) {
+    form.addEventListener('submit', function(event) {
+      event.preventDefault();
+      generateBtn.disabled = true;
+      notificationZone.classList.remove('hidden');
+      notificationMessage.textContent = 'Génération du rapport en cours...';
+
+      const formData = new FormData(form);
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.job_id) {
+          pollJobStatus(data.job_id);
+        } else {
+          notificationMessage.textContent = 'Erreur lors du lancement de la tâche.';
+          setTimeout(() => {
+            notificationZone.classList.add('hidden');
+            generateBtn.disabled = false;
+          }, 3000);
+        }
+      })
+      .catch(error => {
+        console.error('Erreur lors de la soumission:', error);
+        notificationMessage.textContent = 'Erreur de soumission.';
+        setTimeout(() => {
+          notificationZone.classList.add('hidden');
+          generateBtn.disabled = false;
+        }, 3000);
+      });
+    });
+  }
+
+  function pollJobStatus(jobId) {
+    const interval = setInterval(() => {
+      fetch(`/job/status/${jobId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.state === 'SUCCESS') {
+            clearInterval(interval);
+            notificationMessage.textContent = 'Rapport généré avec succès ! Rechargement...';
+            setTimeout(() => window.location.reload(), 1500);
+          } else if (data.state === 'FAILURE') {
+            clearInterval(interval);
+            notificationMessage.textContent = 'Erreur lors de la génération du rapport.';
+            console.error('Erreur de la tâche Celery:', data.error);
+            setTimeout(() => {
+              notificationZone.classList.add('hidden');
+              generateBtn.disabled = false;
+            }, 3000);
+          }
+        })
+        .catch(error => {
+          console.error('Erreur de polling:', error);
+          clearInterval(interval);
+          notificationMessage.textContent = 'Erreur de communication.';
+          setTimeout(() => {
+            notificationZone.classList.add('hidden');
+            generateBtn.disabled = false;
+          }, 3000);
+        });
+    }, 3000);
+  }
+});
+</script>
+{% endblock %}

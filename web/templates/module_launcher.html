@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto py-12">
+  <div class="bg-translucent p-10 rounded-3xl shadow-2xl">
+    <h1 class="text-4xl font-extrabold mb-4 text-[var(--tsar-accent)] text-center">
+      {{ mod.name }}
+    </h1>
+    <p class="text-gray-400 mb-8 text-center">
+      {{ mod.description }}
+    </p>
+
+    <!-- Le formulaire est maintenant un lanceur de tâche Celery -->
+    <form id="module-launcher-form"
+          action="{{ url_for('routes.module_run', name=mod.name) }}"
+          method="post"
+          class="space-y-6">
+
+      {# Génération dynamique des champs du formulaire #}
+      {% for field in mod.schema %}
+        <div>
+          <label for="{{ field.name }}" class="block text-sm font-medium mb-2 text-gray-200">
+            {{ field.name|replace('_', ' ')|capitalize }}
+          </label>
+          {% if field.type == 'string' %}
+            <input type="text" name="{{ field.name }}" id="{{ field.name }}"
+                   placeholder="{{ field.placeholder or '' }}"
+                   {% if field.required %}required{% endif %}
+                   class="w-full px-4 py-2 bg-[#111] border border-[#333] rounded focus:ring-[var(--tsar-accent)]">
+          {% elif field.type == 'select' %}
+            <select name="{{ field.name }}" id="{{ field.name }}"
+                    class="w-full px-4 py-2 bg-[#111] border border-[#333] rounded focus:ring-[var(--tsar-accent)]">
+              {% for choice in field.choices %}
+                <option value="{{ choice }}" {% if choice == field.default %}selected{% endif %}>
+                  {{ choice|capitalize }}
+                </option>
+              {% endfor %}
+            </select>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+      <!-- Bouton Lancer -->
+      <div class="pt-6 border-t border-[#333] flex justify-center">
+        <button type="submit" id="launch-btn"
+                class="flex items-center gap-3 px-10 py-3 bg-[var(--tsar-accent)] text-black font-bold rounded-2xl shadow-lg hover:bg-[var(--tsar-accent2)] transition disabled:opacity-50">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          Lancer le Scan
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Zone de notification pour le polling -->
+  <div id="notification-zone" class="hidden mt-8 text-center">
+    <div class="inline-flex items-center bg-translucent p-4 rounded-lg">
+      <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-[var(--tsar-accent)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+      <span id="notification-message" class="text-white">Scan en cours...</span>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('module-launcher-form');
+  const launchBtn = document.getElementById('launch-btn');
+  const notificationZone = document.getElementById('notification-zone');
+  const notificationMessage = document.getElementById('notification-message');
+
+  form.addEventListener('submit', function(event) {
+    event.preventDefault();
+    launchBtn.disabled = true;
+    notificationZone.classList.remove('hidden');
+
+    const formData = new FormData(form);
+    fetch(form.action, {
+      method: 'POST',
+      body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.job_id) {
+        pollJobStatus(data.job_id);
+      } else {
+        handleFailure("Erreur lors du lancement de la tâche.");
+      }
+    })
+    .catch(error => handleFailure('Erreur de soumission: ' + error));
+  });
+
+  function pollJobStatus(jobId) {
+    const interval = setInterval(() => {
+      fetch(`/job/status/${jobId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.state === 'SUCCESS') {
+            clearInterval(interval);
+            notificationMessage.textContent = 'Scan terminé ! Redirection...';
+            // Redirige vers la page des rapports où le nouveau rapport apparaîtra
+            window.location.href = "{{ url_for('routes.reports') }}";
+          } else if (data.state === 'FAILURE') {
+            clearInterval(interval);
+            handleFailure('La tâche a échoué : ' + data.error);
+          }
+        })
+        .catch(error => {
+          clearInterval(interval);
+          handleFailure('Erreur de communication : ' + error);
+        });
+    }, 3000);
+  }
+
+  function handleFailure(message) {
+    notificationMessage.textContent = message;
+    setTimeout(() => {
+      notificationZone.classList.add('hidden');
+      launchBtn.disabled = false;
+    }, 5000);
+  }
+});
+</script>
+{% endblock %}

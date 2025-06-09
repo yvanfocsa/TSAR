@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-5xl mx-auto py-12 space-y-8">
+  <div class="flex justify-between items-center">
+    <h1 class="text-3xl font-bold text-[var(--tsar-accent)]">Résultats de la comparaison</h1>
+    <a href="{{ url_for('routes.compare_reports') }}" class="text-gray-400 hover:text-[var(--tsar-accent)]">
+      ← Nouvelle comparaison
+    </a>
+  </div>
+  
+  <!-- Rapports comparés -->
+  <div class="bg-translucent p-6 rounded-xl shadow-lg">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="border-r border-[#333] pr-6">
+        <h3 class="text-xl font-semibold text-[var(--tsar-text)]">Rapport 1</h3>
+        <p class="text-sm text-gray-400">{{ report1.filename }}</p>
+        <p class="text-sm text-gray-400">{{ report1.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+      </div>
+      <div>
+        <h3 class="text-xl font-semibold text-[var(--tsar-text)]">Rapport 2</h3>
+        <p class="text-sm text-gray-400">{{ report2.filename }}</p>
+        <p class="text-sm text-gray-400">{{ report2.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Résumé des changements -->
+  <div class="bg-translucent p-6 rounded-xl shadow-lg">
+    <h2 class="text-2xl font-semibold text-[var(--tsar-accent)] mb-4">Résumé des changements</h2>
+    
+    <!-- Ports -->
+    <div class="mb-6">
+      <h3 class="text-xl font-semibold text-[var(--tsar-text)] mb-2">Ports</h3>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Nouveaux ports -->
+        <div class="bg-[#111] p-4 rounded-lg">
+          <h4 class="text-green-500 font-medium mb-2">Nouveaux ports ({{ comparison.new_ports|length }})</h4>
+          {% if comparison.new_ports %}
+            <ul class="list-disc list-inside text-gray-300">
+              {% for port in comparison.new_ports %}
+                <li>{{ port }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-gray-500">Aucun nouveau port détecté</p>
+          {% endif %}
+        </div>
+        
+        <!-- Ports fermés -->
+        <div class="bg-[#111] p-4 rounded-lg">
+          <h4 class="text-red-500 font-medium mb-2">Ports fermés ({{ comparison.closed_ports|length }})</h4>
+          {% if comparison.closed_ports %}
+            <ul class="list-disc list-inside text-gray-300">
+              {% for port in comparison.closed_ports %}
+                <li>{{ port }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-gray-500">Aucun port n'a été fermé</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <!-- Vulnérabilités -->
+    <div>
+      <h3 class="text-xl font-semibold text-[var(--tsar-text)] mb-2">Vulnérabilités</h3>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Nouvelles vulnérabilités -->
+        <div class="bg-[#111] p-4 rounded-lg">
+          <h4 class="text-red-500 font-medium mb-2">Nouvelles vulnérabilités ({{ comparison.new_vulnerabilities|length }})</h4>
+          {% if comparison.new_vulnerabilities %}
+            <ul class="list-disc list-inside text-gray-300">
+              {% for vuln in comparison.new_vulnerabilities %}
+                <li>{{ vuln }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-gray-500">Aucune nouvelle vulnérabilité</p>
+          {% endif %}
+        </div>
+        
+        <!-- Vulnérabilités corrigées -->
+        <div class="bg-[#111] p-4 rounded-lg">
+          <h4 class="text-green-500 font-medium mb-2">Vulnérabilités corrigées ({{ comparison.fixed_vulnerabilities|length }})</h4>
+          {% if comparison.fixed_vulnerabilities %}
+            <ul class="list-disc list-inside text-gray-300">
+              {% for vuln in comparison.fixed_vulnerabilities %}
+                <li>{{ vuln }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-gray-500">Aucune vulnérabilité n'a été corrigée</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-12 space-y-8">
+  <h1 class="text-3xl font-bold text-[var(--tsar-accent)]">Comparer des Rapports</h1>
+  <p class="text-gray-400">Sélectionnez deux rapports à comparer pour analyser les changements.</p>
+  
+  <form action="{{ url_for('routes.compare_reports') }}" method="post" class="bg-translucent p-8 rounded-xl shadow-lg">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Premier rapport -->
+      <div>
+        <label for="report1" class="block text-sm font-medium text-gray-300 mb-2">Premier rapport</label>
+        <select name="report1" id="report1" required class="w-full bg-[#111] border border-[#333] rounded-lg p-3 text-white">
+          <option value="">Sélectionner un rapport...</option>
+          {% for report in reports %}
+            <option value="{{ report.id }}">{{ report.filename }} ({{ report.created_at.strftime('%Y-%m-%d') }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <!-- Second rapport -->
+      <div>
+        <label for="report2" class="block text-sm font-medium text-gray-300 mb-2">Second rapport</label>
+        <select name="report2" id="report2" required class="w-full bg-[#111] border border-[#333] rounded-lg p-3 text-white">
+          <option value="">Sélectionner un rapport...</option>
+          {% for report in reports %}
+            <option value="{{ report.id }}">{{ report.filename }} ({{ report.created_at.strftime('%Y-%m-%d') }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    
+    <div class="mt-8 flex justify-center">
+      <button type="submit" class="px-8 py-3 bg-[var(--tsar-accent)] text-black font-bold rounded-xl hover:bg-[var(--tsar-accent2)] transition-all">
+        Comparer les rapports
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

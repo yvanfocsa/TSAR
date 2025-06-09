@@ -170,7 +170,7 @@ def index():
 @login_required
 def modules_home():
     cats = get_categories()
-    
+
     # Définir l'ordre souhaité pour les catégories PTES et autres
     ptes_order = [
         "PTES - Phase 2",
@@ -181,13 +181,17 @@ def modules_home():
         "Web",
         "OSINT",
     ]
-    
+
     # Trier les catégories en fonction de la liste `ptes_order`
-    sorted_cats = dict(sorted(
-        cats.items(), 
-        key=lambda item: ptes_order.index(item[0]) if item[0] in ptes_order else len(ptes_order)
-    ))
-    
+    sorted_cats = dict(
+        sorted(
+            cats.items(),
+            key=lambda item: ptes_order.index(item[0])
+            if item[0] in ptes_order
+            else len(ptes_order),
+        )
+    )
+
     return render_template("modules.html", cats=sorted_cats)
 
 
@@ -312,13 +316,13 @@ def download_report(rid: int):
 def delete_report(rid: int):
     """Supprime un rapport spécifique."""
     rep = Report.query.get_or_404(rid)
-    
+
     if rep.user_sub != current_user.sub:
         abort(403)
-        
+
     db.session.delete(rep)
     db.session.commit()
-    
+
     return redirect(url_for("routes.reports"))
 
 
@@ -412,65 +416,55 @@ def extract_vulnerabilities(text):
     return list(set(result))
 
 
-# ─────────── CVE ANALYSIS ───────────
+# ─────────── CVE & COMPONENT ANALYSIS ───────────
 @bp.route("/cve-analysis", methods=["GET", "POST"])
 @login_required
 def cve_analysis():
-    # Pour le GET, on charge la liste des rapports pour le dropdown
-    reports = Report.query.filter_by(user_sub=current_user.sub).order_by(Report.created_at.desc()).all()
+    reports = (
+        Report.query.filter_by(user_sub=current_user.sub)
+        .order_by(Report.created_at.desc())
+        .all()
+    )
 
     if request.method == "POST":
         job_id = None
-        # On vérifie si l'utilisateur a soumis un rapport à analyser
-        if 'report_id' in request.form and request.form['report_id']:
-            report_id = int(request.form['report_id'])
-            report = Report.query.get(report_id)
-            job = current_app.celery.send_task("tsar.run_report_cve_analysis", args=[report_id, current_user.sub])
-            return render_template("cve_analysis.html", reports=reports, job_id=job.id, analysis_target=f"Rapport: {report.filename}")
-        
-        # Sinon, on vérifie s'il a soumis un ID de CVE
-        elif 'cve_id' in request.form and request.form['cve_id']:
+        analysis_target = None
+        task_name = None
+
+        # Scénario 1: Analyse par ID de CVE
+        if "cve_id" in request.form and request.form["cve_id"]:
             cve_id = request.form.get("cve_id", "").strip()
-            job = current_app.celery.send_task("tsar.run_cve_analysis", args=[cve_id])
-            return render_template("cve_analysis.html", reports=reports, job_id=job.id, analysis_target=cve_id)
-        
+            job = current_app.celery.send_task(
+                "tsar.run_cve_analysis", args=[cve_id]
+            )
+            analysis_target = cve_id
+
+        # Scénario 2: Analyse par composants d'un rapport
+        elif "report_id" in request.form and request.form["report_id"]:
+            report_id = int(request.form["report_id"])
+            report = Report.query.get(report_id)
+            job = current_app.celery.send_task(
+                "tsar.run_inference_analysis",
+                args=[report_id, current_user.sub],
+            )
+            analysis_target = f"Rapport: {report.filename}"
+
         else:
-            return render_template("cve_analysis.html", reports=reports, error="Veuillez fournir un ID de CVE ou sélectionner un rapport.")
+            return render_template(
+                "cve_analysis.html",
+                reports=reports,
+                error="Veuillez fournir un ID de CVE ou sélectionner un rapport.",
+            )
+
+        return render_template(
+            "cve_analysis.html",
+            reports=reports,
+            job_id=job.id,
+            analysis_target=analysis_target,
+        )
 
     return render_template("cve_analysis.html", reports=reports)
 
-
-@bp.route("/cve-analysis/status/<job_id>")
-@login_required
-def cve_analysis_status(job_id: str):
-    """Vérifie l'état d'une tâche d'analyse CVE."""
-    from celery.result import AsyncResult
-    task = AsyncResult(job_id, app=current_app.celery)
-    
-    response = {"state": task.state}
-    if task.state == 'SUCCESS':
-        response["result"] = task.result
-    elif task.state == 'FAILURE':
-        response['error'] = str(task.info)
-        
-    return jsonify(response)
-
-# ─────────── INFERENCE ANALYSIS ───────────
-@bp.route("/inference-analysis", methods=["GET", "POST"])
-@login_required
-def inference_analysis():
-    reports = Report.query.filter_by(user_sub=current_user.sub).order_by(Report.created_at.desc()).all()
-    
-    if request.method == "POST":
-        report_id = request.form.get("report_id")
-        if not report_id:
-            return render_template("inference_analysis.html", reports=reports, error="Veuillez sélectionner un rapport.")
-        
-        report = Report.query.get(report_id)
-        job = current_app.celery.send_task("tsar.run_inference_analysis", args=[int(report_id), current_user.sub])
-        return render_template("inference_analysis.html", reports=reports, job_id=job.id, analysis_target=report.filename)
-
-    return render_template("inference_analysis.html", reports=reports)
 
 # ─────────── PROFIL UTILISATEUR ───────────
 @bp.route("/profile")
@@ -528,7 +522,9 @@ def profile_avatar():
     if not profile or not profile.avatar_data:
         abort(404)
 
-    return Response(profile.avatar_data, mimetype=profile.avatar_mime or "image/jpeg")
+    return Response(
+        profile.avatar_data, mimetype=profile.avatar_mime or "image/jpeg"
+    )
 
 
 # ─────────── TÂCHES PLANIFIÉES ───────────
@@ -566,7 +562,9 @@ def create_scheduled_task():
         schedule_time = time(9, 0)
 
     now = datetime.utcnow()
-    next_run = _calculate_next_run(now, schedule_type, schedule_time, schedule_day)
+    next_run = _calculate_next_run(
+        now, schedule_type, schedule_time, schedule_day
+    )
 
     task = ScheduledTask(
         user_sub=current_user.sub,
@@ -611,7 +609,9 @@ def delete_scheduled_task(task_id: int):
     return redirect(url_for("routes.scheduled_tasks"))
 
 
-def _calculate_next_run(now, schedule_type, schedule_time, schedule_day=None):
+def _calculate_next_run(
+    now, schedule_type, schedule_time, schedule_day=None
+):
     """Calcule la prochaine exécution d'une tâche."""
     next_date = now.date()
 
@@ -636,7 +636,9 @@ def _calculate_next_run(now, schedule_type, schedule_time, schedule_day=None):
                     year=now.year + 1, month=1, day=target_day
                 )
             else:
-                next_date = next_date.replace(month=now.month + 1, day=target_day)
+                next_date = next_date.replace(
+                    month=now.month + 1, day=target_day
+                )
 
     return datetime.combine(next_date, schedule_time)
 

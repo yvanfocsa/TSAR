@@ -53,10 +53,6 @@
            class="block px-4 py-2 rounded-lg {{ 'bg-[var(--tsar-accent)] text-black' if '/reports' in request.path else 'hover:bg-[#1d2530]' }}">
           Rapports
         </a>
-        <a href="{{ url_for('routes.inference_analysis') }}"
-           class="block px-4 py-2 rounded-lg {{ 'bg-[var(--tsar-accent)] text-black' if '/inference-analysis' in request.path else 'hover:bg-[#1d2530]' }}">
-          Analyse par Composants
-        </a>
 		<a href="{{ url_for('routes.cve_analysis') }}"
 		   class="block px-4 py-2 rounded-lg {{ 'bg-[var(--tsar-accent)] text-black' if '/cve-analysis' in request.path else 'hover:bg-[#1d2530]' }}">
 		  Analyse CVE

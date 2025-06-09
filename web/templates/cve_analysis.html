@@ -4,23 +4,23 @@
 <div class="max-w-4xl mx-auto py-12">
   <h1 class="text-4xl font-bold text-center text-[var(--tsar-accent)] mb-6">Analyse de Vulnérabilités</h1>
   <p class="text-center text-gray-400 mb-8">
-    Analysez une CVE unique par son ID ou extrayez et analysez toutes les CVEs d'un de vos rapports.
+    Analysez une CVE par son ID, ou analysez un rapport pour découvrir les vulnérabilités liées aux composants détectés.
   </p>
 
   <!-- Onglets de sélection du mode d'analyse -->
   <div class="mb-4 border-b border-gray-700">
     <nav class="-mb-px flex space-x-8" aria-label="Tabs">
       <button onclick="switchTab('cve')" id="tab-cve" class="tab-btn border-[var(--tsar-accent)] text-[var(--tsar-accent)] whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-        Analyser par ID
+        Analyser par ID de CVE
       </button>
-      <button onclick="switchTab('report')" id="tab-report" class="tab-btn border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-        Analyser un Rapport
+      <button onclick="switchTab('component')" id="tab-component" class="tab-btn border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+        Analyser par Composants (Rapport)
       </button>
     </nav>
   </div>
 
   <!-- Formulaire pour analyser par ID -->
-  <form id="form-cve" method="post" class="bg-translucent p-8 rounded-2xl shadow-lg flex items-center gap-4">
+  <form id="form-cve" method="post" action="{{ url_for('routes.cve_analysis') }}" class="bg-translucent p-8 rounded-2xl shadow-lg flex items-center gap-4">
     <input type="text" name="cve_id" placeholder="Ex: CVE-2021-44228" required
            class="flex-1 px-4 py-3 bg-[#111] border border-[#333] rounded-lg text-white focus:ring-2 focus:ring-[var(--tsar-accent)]">
     <button type="submit" class="px-8 py-3 bg-[var(--tsar-accent)] text-black font-bold rounded-lg hover:bg-[var(--tsar-accent2)] transition">
@@ -28,8 +28,8 @@
     </button>
   </form>
 
-  <!-- Formulaire pour analyser un rapport -->
-  <form id="form-report" method="post" class="hidden bg-translucent p-8 rounded-2xl shadow-lg flex items-center gap-4">
+  <!-- Formulaire pour analyser par composants -->
+  <form id="form-component" method="post" action="{{ url_for('routes.cve_analysis') }}" class="hidden bg-translucent p-8 rounded-2xl shadow-lg flex items-center gap-4">
     <select name="report_id" required class="flex-1 px-4 py-3 bg-[#111] border border-[#333] rounded-lg text-white focus:ring-2 focus:ring-[var(--tsar-accent)]">
       <option value="" disabled selected>Sélectionnez un rapport à analyser...</option>
       {% for report in reports %}
@@ -62,22 +62,22 @@
 <script>
   function switchTab(tab) {
     const formCve = document.getElementById('form-cve');
-    const formReport = document.getElementById('form-report');
+    const formComponent = document.getElementById('form-component');
     const tabCve = document.getElementById('tab-cve');
-    const tabReport = document.getElementById('tab-report');
+    const tabComponent = document.getElementById('tab-component');
 
     if (tab === 'cve') {
       formCve.classList.remove('hidden');
-      formReport.classList.add('hidden');
+      formComponent.classList.add('hidden');
       tabCve.classList.add('border-[var(--tsar-accent)]', 'text-[var(--tsar-accent)]');
       tabCve.classList.remove('border-transparent', 'text-gray-400');
-      tabReport.classList.add('border-transparent', 'text-gray-400');
-      tabReport.classList.remove('border-[var(--tsar-accent)]', 'text-[var(--tsar-accent)]');
+      tabComponent.classList.add('border-transparent', 'text-gray-400');
+      tabComponent.classList.remove('border-[var(--tsar-accent)]', 'text-[var(--tsar-accent)]');
     } else {
       formCve.classList.add('hidden');
-      formReport.classList.remove('hidden');
-      tabReport.classList.add('border-[var(--tsar-accent)]', 'text-[var(--tsar-accent)]');
-      tabReport.classList.remove('border-transparent', 'text-gray-400');
+      formComponent.classList.remove('hidden');
+      tabComponent.classList.add('border-[var(--tsar-accent)]', 'text-[var(--tsar-accent)]');
+      tabComponent.classList.remove('border-transparent', 'text-gray-400');
       tabCve.classList.add('border-transparent', 'text-gray-400');
       tabCve.classList.remove('border-[var(--tsar-accent)]', 'text-[var(--tsar-accent)]');
     }
@@ -92,20 +92,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const successState = document.getElementById('success-state');
   const errorState = document.getElementById('error-state');
 
-  function getSeverityClass(severity) {
-    if (!severity) return 'bg-gray-500';
-    switch (severity.toUpperCase()) {
-      case 'CRITIQUE': return 'bg-purple-600';
-      case 'ÉLEVÉE':   return 'bg-red-600';
-      case 'MOYENNE':  return 'bg-orange-500';
-      case 'FAIBLE':   return 'bg-yellow-500';
-      default:         return 'bg-gray-500';
-    }
-  }
-
   function pollStatus() {
     const interval = setInterval(() => {
-      fetch(`/cve-analysis/status/${jobId}`)
+      fetch(`/job/status/${jobId}`)
         .then(response => response.json())
         .then(data => {
           if (data.state === 'SUCCESS') {
@@ -129,51 +118,82 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function displayResults(resultData) {
-    // S'assurer que nous avons toujours un tableau à parcourir
-    const results = Array.isArray(resultData) ? resultData : [resultData];
+    // On vérifie si le résultat est une liste (analyse par composants) ou un objet (analyse de CVE)
+    if (Array.isArray(resultData)) {
+      displayComponentResults(resultData);
+    } else {
+      displayCveResult(resultData);
+    }
+  }
 
+  function displayCveResult(result) {
+    if (result.error) {
+      successState.innerHTML = `<div class="bg-red-900/20 p-4 rounded-lg text-red-400"><strong>${result.id}:</strong> ${result.error}</div>`;
+      successState.style.display = 'block';
+      return;
+    }
+
+    const severityClass = getSeverityClass(result.cvss.severity);
+    let decodedVectorHtml = '';
+    if (result.decoded_vector && result.decoded_vector.length > 0) {
+      result.decoded_vector.forEach(item => {
+        decodedVectorHtml += `<div class="flex justify-between items-center text-sm"><span class="text-gray-400">${item.metric}</span><span class="font-semibold text-white">${item.value}</span></div>`;
+      });
+    } else {
+      decodedVectorHtml = `<code class="text-sm text-amber-400">${result.cvss.vector || 'Non disponible'}</code>`;
+    }
+
+    const finalHtml = `
+      <div class="bg-translucent p-8 rounded-2xl shadow-lg animate-fade-in">
+        <div class="flex justify-between items-start mb-4">
+          <h2 class="text-3xl font-bold text-[var(--tsar-accent)]">${result.id}</h2>
+          <div class="text-right"><span class="px-4 py-2 rounded-full text-white font-bold text-sm ${severityClass}">${result.cvss.severity || 'N/A'} ${result.cvss.score || ''}</span></div>
+        </div>
+        <div class="space-y-6">
+          <div><h3 class="font-semibold text-gray-300 mb-1">Description</h3><p class="text-gray-400">${result.description}</p></div>
+          <div class="bg-[#111] p-4 rounded-lg"><h4 class="font-semibold text-gray-300 mb-2">Type de Faiblesse (CWE)</h4><p class="text-gray-400">${result.cwe}</p></div>
+          <div class="bg-[#111] p-4 rounded-lg"><h4 class="font-semibold text-gray-300 mb-3">Vecteur d'Attaque Détaillé (CVSS)</h4><div class="space-y-2">${decodedVectorHtml}</div></div>
+          <div><h3 class="font-semibold text-gray-300 mb-1">Dates</h3><p class="text-sm text-gray-400">Publiée le: ${new Date(result.publishedDate).toLocaleDateString('fr-FR')} | Dernière modification: ${new Date(result.lastModifiedDate).toLocaleDateString('fr-FR')}</p></div>
+          <div class="pt-4 border-t border-gray-700"><a href="${result.url}" target="_blank" class="text-[var(--tsar-accent)] hover:underline font-semibold">Voir les détails sur NVD.NIST.GOV &rarr;</a></div>
+        </div>
+      </div>
+    `;
+    successState.innerHTML = finalHtml;
+    successState.style.display = 'block';
+  }
+
+  function displayComponentResults(results) {
     if (results.length === 0) {
-        successState.innerHTML = `<div class="bg-translucent p-8 rounded-2xl text-center text-gray-400">Aucune CVE n'a été trouvée dans ce rapport.</div>`;
+        successState.innerHTML = `<div class="bg-translucent p-8 rounded-2xl text-center text-gray-400">Aucun composant exploitable n'a été identifié ou aucune CVE n'a été trouvée pour les composants détectés.</div>`;
         successState.style.display = 'block';
         return;
     }
 
-    let finalHtml = '';
-    results.forEach(result => {
-      if (result.error) {
-        finalHtml += `<div class="bg-red-900/20 p-4 rounded-lg text-red-400"><strong>${result.id}:</strong> ${result.error}</div>`;
-        return;
-      }
-
-      const severityClass = getSeverityClass(result.cvss.severity);
-      let decodedVectorHtml = '';
-      if (result.decoded_vector && result.decoded_vector.length > 0) {
-        result.decoded_vector.forEach(item => {
-          decodedVectorHtml += `<div class="flex justify-between items-center text-sm"><span class="text-gray-400">${item.metric}</span><span class="font-semibold text-white">${item.value}</span></div>`;
-        });
-      } else {
-        decodedVectorHtml = `<code class="text-sm text-amber-400">${result.cvss.vector || 'Non disponible'}</code>`;
-      }
-
-      finalHtml += `
-        <div class="bg-translucent p-8 rounded-2xl shadow-lg animate-fade-in">
-          <div class="flex justify-between items-start mb-4">
-            <h2 class="text-3xl font-bold text-[var(--tsar-accent)]">${result.id}</h2>
-            <div class="text-right"><span class="px-4 py-2 rounded-full text-white font-bold text-sm ${severityClass}">${result.cvss.severity || 'N/A'} ${result.cvss.score || ''}</span></div>
-          </div>
-          <div class="space-y-6">
-            <div><h3 class="font-semibold text-gray-300 mb-1">Description</h3><p class="text-gray-400">${result.description}</p></div>
-            <div class="bg-[#111] p-4 rounded-lg"><h4 class="font-semibold text-gray-300 mb-2">Type de Faiblesse (CWE)</h4><p class="text-gray-400">${result.cwe}</p></div>
-            <div class="bg-[#111] p-4 rounded-lg"><h4 class="font-semibold text-gray-300 mb-3">Vecteur d'Attaque Détaillé (CVSS)</h4><div class="space-y-2">${decodedVectorHtml}</div></div>
-            <div><h3 class="font-semibold text-gray-300 mb-1">Dates</h3><p class="text-sm text-gray-400">Publiée le: ${new Date(result.publishedDate).toLocaleDateString('fr-FR')} | Dernière modification: ${new Date(result.lastModifiedDate).toLocaleDateString('fr-FR')}</p></div>
-            <div class="pt-4 border-t border-gray-700"><a href="${result.url}" target="_blank" class="text-[var(--tsar-accent)] hover:underline font-semibold">Voir les détails sur NVD.NIST.GOV &rarr;</a></div>
-          </div>
-        </div>
-      `;
+    let finalHtml = `<h2 class="text-2xl font-bold text-[var(--tsar-accent)] mb-4">Résultats de l'Analyse par Composants</h2>`;
+    results.forEach(item => {
+        finalHtml += `
+            <div class="bg-[#111] p-4 rounded-lg mb-4 animate-fade-in">
+                <h3 class="text-lg font-semibold text-white">Composant Détecté : <span class="text-amber-400">${item.component}</span></h3>
+                <p class="text-sm text-gray-400">${item.count} CVE(s) potentiellement associée(s) trouvée(s) :</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    ${item.cves.map(cve => `<a href="${'{{ url_for("routes.cve_analysis") }}?cve_id=' + cve}" target="_blank" class="text-xs bg-gray-700 text-gray-200 px-2 py-1 rounded hover:bg-[var(--tsar-accent)] hover:text-black transition">${cve}</a>`).join('')}
+                </div>
+            </div>
+        `;
     });
-    
     successState.innerHTML = finalHtml;
     successState.style.display = 'block';
+  }
+
+  function getSeverityClass(severity) {
+    if (!severity) return 'bg-gray-500';
+    switch (severity.toUpperCase()) {
+      case 'CRITIQUE': return 'bg-purple-600';
+      case 'ÉLEVÉE':   return 'bg-red-600';
+      case 'MOYENNE':  return 'bg-orange-500';
+      case 'FAIBLE':   return 'bg-yellow-500';
+      default:         return 'bg-gray-500';
+    }
   }
 
   pollStatus();

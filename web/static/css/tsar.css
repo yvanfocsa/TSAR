@@ -4,17 +4,18 @@
 
 /* ===== PALETTE COLORS ===== */
 :root {
-  --tsar-bg:      #0f0f0f;
-  --tsar-card:    #1e1e1e;
-  --tsar-accent:  #e84545;
+  --tsar-bg: #0f0f0f;
+  --tsar-card: #1e1e1e;
+  --tsar-accent: #e84545;
   --tsar-accent2: #ff6666;
-  --tsar-text:    #e5e5e5;
+  --tsar-text: #e5e5e5;
+  --tsar-accent-translucent: rgba(232, 69, 69, 0.3);
 }
 
 /* ===== BASE ===== */
 body {
   background: var(--tsar-bg);
-  color:      var(--tsar-text);
+  color: var(--tsar-text);
   font-family: "Inter", "Segoe UI", sans-serif;
   font-feature-settings: "ss01";
 }
@@ -36,12 +37,7 @@ a:hover {
 
 /* ------------------------------------------------------------------
    BOUTONS
-   Pour éviter que la règle générique <a:hover> ci-dessus ne recolore
-   nos boutons (qui sont souvent des <a>), on redéfinit
-   la couleur du texte de façon plus spécifique.
 ------------------------------------------------------------------- */
-
-/* ===== BOUTONS GÉNÉRIQUES ===== */
 .btn {
   @apply inline-block px-6 py-3
          bg-[var(--tsar-accent)] text-black
@@ -52,8 +48,6 @@ a:hover {
 .btn:hover {
   @apply bg-[var(--tsar-accent2)] border-[var(--tsar-accent2)] text-black;
 }
-
-/* ===== BOUTONS SECONDAIRES ===== */
 .btn-secondary {
   @apply inline-block px-6 py-3
          bg-transparent text-[var(--tsar-accent)]
@@ -64,22 +58,12 @@ a:hover {
 .btn-secondary:hover {
   @apply bg-[var(--tsar-accent)] text-black;
 }
-
-/* ------------------------------------------------------------------
-   Forcer les ancres ayant .btn ou .btn-anim à rester noires au hover
-------------------------------------------------------------------- */
 a.btn,
 a.btn:hover,
 a.btn-anim,
 a.btn-anim:hover {
   color: #000 !important;
 }
-
-/* ------------------------------------------------------------------
-   Cas générique : tout lien ayant un fond accent / accent2 (utilisés
-   pour les boutons “Lancer” codés sans la classe .btn) garde
-   également le texte noir même au survol.
-------------------------------------------------------------------- */
 a.bg-\[var\(--tsar-accent\)\],
 a.bg-\[var\(--tsar-accent\)\]:hover,
 a.bg-\[var\(--tsar-accent2\)\],
@@ -94,7 +78,7 @@ a.bg-\[var\(--tsar-accent2\)\]:hover {
   font-size: 1.5rem;
   cursor: pointer;
   padding: 0;
-  color: var(--tsar-accent) !important; /* toujours rouge */
+  color: var(--tsar-accent) !important;
   outline: none !important;
   box-shadow: none !important;
   transition: transform 0.15s;
@@ -152,7 +136,6 @@ aside nav {
 aside nav a {
   @apply btn;
 }
-/* Empêche le hover sur le lien actif */
 aside nav a.bg-\[var\(--tsar-accent\)\].text-black:hover {
   background-color: var(--tsar-accent) !important;
   border-color: var(--tsar-accent) !important;
@@ -182,34 +165,15 @@ aside nav a.bg-\[var\(--tsar-accent\)\].text-black:hover {
 
 /* ===== MODULES PAGE (CARDS + BOUTON LANCER) ===== */
 @layer components {
-  /* ────────────────────────────────────────────── *
-   *   Carte “module” sous forme de bulle floutée   *
-   * ────────────────────────────────────────────── */
   .module-card {
-    @apply bg-translucent rounded-3xl
-           shadow-lg overflow-hidden
-           transform transition-transform
-           duration-300 ease-in-out;
+    @apply bg-translucent p-6 rounded-2xl shadow-lg
+           flex flex-col justify-between
+           transition-all duration-300 ease-in-out;
   }
   .module-card:hover {
-    @apply shadow-2xl -translate-y-1;
+    @apply -translate-y-1 shadow-2xl;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2), 0 0 20px var(--tsar-accent-translucent);
   }
-
-  /* Titre de la carte – basique, puis accentué au hover */
-  .module-card h3 {
-    @apply text-[var(--tsar-text)] transition-colors
-           duration-200 ease-in-out;
-  }
-  .module-card:hover h3 {
-    @apply text-[var(--tsar-accent)];
-  }
-
-  /* Description – retour à la ligne si un mot trop long */
-  .module-card p {
-    overflow-wrap: break-word;
-  }
-
-  /* Lien “Lancer” dans chaque carte */
   .btn-anim {
     @apply inline-flex items-center gap-2
            px-5 py-2 bg-[var(--tsar-accent)]
@@ -225,4 +189,3 @@ aside nav a.bg-\[var\(--tsar-accent\)\].text-black:hover {
     @apply outline-none ring-2 ring-[var(--tsar-accent)];
   }
 }
-

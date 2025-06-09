@@ -203,44 +203,6 @@ def run_cve_analysis(cve_id: str) -> dict:
         logging.error(f"Erreur inattendue lors de l'analyse de {cve_id}: {e}", exc_info=True)
         raise
 
-@celery.task(name="tsar.run_report_cve_analysis", acks_late=True, throws=(Exception,))
-def run_report_cve_analysis(report_id: int, user_sub: str) -> list[dict]:
-    """Extrait toutes les CVEs d'un rapport, les analyse via l'API NVD, et retourne une liste de résultats."""
-    from . import create_app, db
-    from .models import Report
-    from .pdf_crypto import decrypt
-    from pdfminer.high_level import extract_text
-    import io
-
-    app = create_app(register_blueprints=False, register_context_processors=False)
-    with app.app_context():
-        logging.info(f"Début de l'analyse de rapport #{report_id} pour les CVEs.")
-        
-        report = Report.query.get(report_id)
-        if not report or report.user_sub != user_sub:
-            raise Exception("Rapport non trouvé ou accès non autorisé.")
-
-        pdf_bytes = decrypt(report.pdf_data)
-        text = extract_text(io.BytesIO(pdf_bytes))
-
-        cve_ids = sorted(list(set(re.findall(r"CVE-\d{4}-\d{4,7}", text, re.IGNORECASE))))
-
-        if not cve_ids:
-            return []
-
-        logging.info(f"{len(cve_ids)} CVEs trouvées dans le rapport: {', '.join(cve_ids)}")
-
-        results = []
-        for cve_id in cve_ids:
-            try:
-                result = run_cve_analysis.s(cve_id).apply().get()
-                results.append(result)
-            except Exception as e:
-                logging.warning(f"Impossible d'analyser {cve_id}: {e}")
-                results.append({"id": cve_id, "error": str(e)})
-        
-        return results
-
 def _extract_components_from_report(report_text: str) -> set[str]:
     """Extrait des composants potentiels (produit + version) d'un rapport."""
     pattern = re.compile(r"([a-zA-Z0-9\._-]+)\s+version\s+([\d\.]+[a-z\d\.]*)", re.IGNORECASE)

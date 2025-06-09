@@ -41,7 +41,7 @@
                 class="w-full px-4 py-3 bg-[#111] border border-[#333] rounded-lg text-[var(--tsar-text)]">
           <option value="">Sélectionner un module...</option>
           {% for mod in modules %}
-            {% if mod.name != 'Rapport – Génération' %}
+            {% if not mod.hidden_from_list %}
               <option value="{{ mod.name }}">{{ mod.name }}</option>
             {% endif %}
           {% endfor %}
@@ -185,7 +185,7 @@
               <form action="{{ url_for('routes.delete_scheduled_task', task_id=task.id) }}" 
                     method="post" 
                     class="inline"
-                    onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')">
+                    onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette tâche planifiée ?')">
                 <button type="submit" 
                         class="p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">

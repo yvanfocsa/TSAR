@@ -4,7 +4,7 @@ import shlex
 # --- Les imports devraient maintenant fonctionner ---
 from modules.intelligence_gathering import MODULE as _mod_intel
 from modules.vulnerability_analysis import MODULE as _mod_vuln
-from modules.exploitation           import MODULE as _mod_exploit
+from modules.exploitation import MODULE as _mod_exploit
 
 # ─────────── Mapping section → module ───────────
 MODULE_MAP = {
@@ -19,6 +19,7 @@ MODULE = {
     "category": "PTES - Phase 7",
     "binary": "rapport",
     "hidden": False,
+    "hidden_from_list": True,  # Ne pas afficher dans la liste des modules
     "schema": [
         {
             "name": "target",
@@ -35,11 +36,12 @@ MODULE = {
     "cmd": lambda p: _build_report_cmd(p),
 }
 
+
 def _build_report_cmd(p: dict) -> list[str]:
     """
     Construit la commande shell pour générer le rapport en parallèle.
     """
-    parts_bg:  list[str] = []
+    parts_bg: list[str] = []
     parts_cat: list[str] = []
 
     for sec in p.get("sections", []):
@@ -48,13 +50,15 @@ def _build_report_cmd(p: dict) -> list[str]:
 
         sub_params = {
             "target": p.get("target", ""),
-            "mode":   "full", 
+            "mode": "full",
         }
-        
-        if "service" in [s["name"] for s in MODULE_MAP[sec].get("schema", [])]:
+
+        if "service" in [
+            s["name"] for s in MODULE_MAP[sec].get("schema", [])
+        ]:
             sub_params["service"] = p.get("service", "")
 
-        cmd_list   = MODULE_MAP[sec]["cmd"](sub_params)
+        cmd_list = MODULE_MAP[sec]["cmd"](sub_params)
         single_cmd = " ".join(shlex.quote(str(part)) for part in cmd_list)
 
         parts_bg.append(f"({single_cmd}) > /tmp/{sec}.log 2>&1 &")
@@ -65,8 +69,8 @@ def _build_report_cmd(p: dict) -> list[str]:
     if not parts_bg:
         return ["bash", "-c", "echo 'Aucune section sélectionnée'"]
 
-    cmd_parallel      = " && ".join(parts_bg)
-    cmd_wait_and_cat  = "wait && " + " && ".join(parts_cat)
-    final_shell_cmd   = f"{cmd_parallel} && {cmd_wait_and_cat}"
+    cmd_parallel = " && ".join(parts_bg)
+    cmd_wait_and_cat = "wait && " + " && ".join(parts_cat)
+    final_shell_cmd = f"{cmd_parallel} && {cmd_wait_and_cat}"
 
     return ["bash", "-c", final_shell_cmd]

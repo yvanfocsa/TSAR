@@ -10,11 +10,19 @@ services:
     build:
       context: ./toolbox
       dockerfile: Dockerfile
-    image: tsar/toolbox:light
+    # image: tsar/toolbox:light # Commenté pour forcer le build depuis le Dockerfile
     command: tail -f /dev/null # conteneur toujours “vivant”
     labels:
       - "traefik.enable=false" # pas de Traefik dans la stack locale
     networks: [tsar-net]
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv4.ip_forward=1
+    volumes:
+      - ./vpn_configs:/etc/wireguard
+    ports:
+      - "51820:51820/udp"
 
   # ─────────────────────────────── POSTGRES -------------------------------------
   db:
@@ -43,7 +51,7 @@ services:
     build:
       context: .
       dockerfile: web/Dockerfile # même image que Flask
-    image: tsar/worker:latest
+    # image: tsar/worker:latest # Commenté pour forcer le build
     env_file: .env
     environment:
       CELERY_BROKER_URL: redis://redis:6379/0
@@ -57,7 +65,6 @@ services:
       celery -A app.tasks:celery worker
              --loglevel=info
              --concurrency=4
-    # tourne root → accès au socket Docker ; retirer si vous préférez un user non-root
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./web/:/app # hot-reload
@@ -70,7 +77,7 @@ services:
     build:
       context: .
       dockerfile: web/Dockerfile
-    image: tsar/scheduler:latest
+    # image: tsar/scheduler:latest # Commenté pour forcer le build
     env_file: .env
     environment:
       CELERY_BROKER_URL: redis://redis:6379/0
@@ -89,7 +96,7 @@ services:
     build:
       context: .
       dockerfile: web/Dockerfile
-    image: tsar/web:latest
+    # image: tsar/web:latest # Commenté pour forcer le build
     env_file: .env
     environment:
       CELERY_BROKER_URL: redis://redis:6379/0

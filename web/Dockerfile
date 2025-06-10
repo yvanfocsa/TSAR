@@ -11,11 +11,8 @@ ENV PYTHONDONTWRITEBYTECODE=1  \
     PYTHONUNBUFFERED=1
 
 # ────────────────────────── Dépendances système utiles ───────────────────────
-# wkhtmltopdf : rendu PDF
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-      gcc python3-dev build-essential wkhtmltopdf && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# FIX: Toutes les commandes sur une seule ligne pour éviter les erreurs de parsing.
+RUN apt-get update && apt-get install -y --no-install-recommends gcc python3-dev build-essential wkhtmltopdf ca-certificates && update-ca-certificates && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ─────────────────────────── Install deps Python ─────────────────────────────
 COPY web/requirements.txt .
@@ -38,4 +35,3 @@ EXPOSE 5373
 # ─────────────────────────── Commande de démarrage ───────────────────────────
 # --reload : hot-reload pratique en dev ; en prod, préférer gunicorn/uwsgi
 CMD ["flask", "run", "--reload"]
-

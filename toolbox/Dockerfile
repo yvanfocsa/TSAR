@@ -29,7 +29,37 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Installation des dépendances système et des outils via APT
 # ------------------------------------------------------------------------------
 # FIX: Toutes les commandes sur une seule ligne pour éviter les erreurs de parsing.
-RUN apt-get update && apt-get install -y --no-install-recommends git curl wget unzip jq python3 python3-pip python3-shodan nmap whois subfinder dnsenum sqlmap metasploit-framework nikto nuclei gobuster wfuzz whatweb wpscan hydra gvm-tools openvas-scanner amass theharvester neo4j wireguard-tools && apt-get clean && rm -rf /var/lib/apt/lists/*
+# NOUVEAU : Ajout de 'gitleaks' à la liste des paquets
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    wget \
+    unzip \
+    jq \
+    python3 \
+    python3-pip \
+    python3-shodan \
+    nmap \
+    whois \
+    subfinder \
+    dnsenum \
+    sqlmap \
+    metasploit-framework \
+    nikto \
+    nuclei \
+    gobuster \
+    wfuzz \
+    whatweb \
+    wpscan \
+    hydra \
+    gvm-tools \
+    openvas-scanner \
+    amass \
+    theharvester \
+    neo4j \
+    wireguard-tools \
+    gitleaks \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------------------
 # Installation des outils depuis GitHub et autres sources

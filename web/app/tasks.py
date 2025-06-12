@@ -2,16 +2,18 @@
 from __future__ import annotations
 
 import datetime
-import json
 import logging
 import os
 import re
+import shlex
 import time
+import uuid
 
 import docker
 import requests
 from celery import Celery
 from celery.signals import worker_process_init
+from redis import Redis
 
 from .modules import MODULES, load_modules
 
@@ -27,9 +29,50 @@ def init_modules_on_worker_start(**kwargs):
     logging.info(f"Modules loaded in worker: {[m['name'] for m in MODULES]}")
 
 
+def _generate_vpn_config(public_ip: str) -> tuple[str, str]:
+    """Génère les configurations serveur et client pour WireGuard."""
+    client = docker.from_env()
+    container = client.containers.get(os.getenv("TOOLBOX_CONTAINER", "toolbox"))
+
+    _, server_priv_key_b = container.exec_run("wg genkey")
+    server_priv_key = server_priv_key_b.decode().strip()
+    
+    _, server_pub_key_b = container.exec_run(f"echo '{server_priv_key}' | wg pubkey")
+    server_pub_key = server_pub_key_b.decode().strip()
+    
+    _, client_priv_key_b = container.exec_run("wg genkey")
+    client_priv_key = client_priv_key_b.decode().strip()
+
+    _, client_pub_key_b = container.exec_run(f"echo '{client_priv_key}' | wg pubkey")
+    client_pub_key = client_pub_key_b.decode().strip()
+
+    server_conf = f"""[Interface]
+Address = 10.0.0.1/24
+ListenPort = 51820
+PrivateKey = {server_priv_key}
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+
+[Peer]
+PublicKey = {client_pub_key}
+AllowedIPs = 10.0.0.2/32
+"""
+    client_conf = f"""[Interface]
+PrivateKey = {client_priv_key}
+Address = 10.0.0.2/24
+
+[Peer]
+PublicKey = {server_pub_key}
+Endpoint = {shlex.quote(public_ip)}:51820
+AllowedIPs = 0.0.0.0/0, ::/0
+PersistentKeepalive = 25
+"""
+    return server_conf, client_conf
+
+
 @celery.task(name="tsar.run_job")
-def run_job(module_name: str, params: dict, user_sub: str) -> int | None:
-    """Exécute un module et génère un rapport PDF."""
+def run_job(module_name: str, params: dict, user_sub: str) -> dict:
+    """Exécute un module. Gère le cas spécial du VPN."""
     from . import create_app, db
     from .models import Report
     from .pdf import generate_report
@@ -41,53 +84,80 @@ def run_job(module_name: str, params: dict, user_sub: str) -> int | None:
 
         mod = next((m for m in MODULES if m["name"] == module_name), None)
         if not mod:
-            logging.error(f"FATAL: Module '{module_name}' introuvable dans le worker.")
-            return None
+            logging.error(f"FATAL: Module '{module_name}' introuvable.")
+            return {"error": f"Module '{module_name}' introuvable."}
 
+        # --- CAS SPÉCIAL : Automatisation de la génération de config VPN ---
+        if module_name == "IoT - Pivot VPN" and params.get("action") == "generate_config":
+            try:
+                public_ip = params.get("public_ip", "VOTRE_IP_PUBLIQUE")
+                if not public_ip or public_ip == "VOTRE_IP_PUBLIQUE":
+                    return {"error": "L'IP publique est requise pour générer la configuration."}
+
+                server_conf, client_conf = _generate_vpn_config(public_ip)
+                
+                client = docker.from_env()
+                container = client.containers.get(os.getenv("TOOLBOX_CONTAINER", "toolbox"))
+                container.exec_run(f"bash -c 'echo \"{server_conf}\" > /etc/wireguard/wg0.conf && chmod 600 /etc/wireguard/wg0.conf'")
+
+                redis_client = Redis.from_url(app.config["CELERY_BROKER_URL"])
+                token = str(uuid.uuid4())
+                redis_key = f"vpn_config:{token}"
+                redis_client.set(redis_key, client_conf, ex=300)
+
+                base_url = app.config.get("AUTH0_CALLBACK_URL", "http://localhost:5373").rsplit('/', 1)[0]
+                config_url = f"{base_url}/vpn/config/{token}"
+                
+                one_liner = (
+                    f"curl -sSL {config_url} | sudo tee /etc/wireguard/wg0.conf > /dev/null && "
+                    "sudo chmod 600 /etc/wireguard/wg0.conf && "
+                    "sudo wg-quick up wg0"
+                )
+                
+                logging.info(f"Config VPN générée. Token: {token}")
+                return {"one_liner": one_liner}
+
+            except Exception as e:
+                logging.error(f"Erreur de génération VPN: {e}", exc_info=True)
+                return {"error": str(e)}
+
+        # --- Exécution normale pour tous les autres modules ---
         cmd = mod["cmd"](params)
         container_name = os.getenv("TOOLBOX_CONTAINER", "toolbox")
         try:
             client = docker.from_env()
             container = client.containers.get(container_name)
-            exec_res = container.exec_run(cmd, stdout=True, stderr=True)
-            output = exec_res.output.decode(errors="ignore")
-            logging.info(f"Exécution de la commande pour '{module_name}' terminée.")
+            exit_code, output_bytes = container.exec_run(cmd, stdout=True, stderr=True)
+            output = output_bytes.decode(errors="ignore")
         except docker.errors.NotFound:
             output = f"ERREUR : Le conteneur Docker '{container_name}' est introuvable."
-            logging.error(output)
         except Exception as exc:
             output = f"ERREUR : {exc!s}"
-            logging.error(f"Erreur lors de l'exécution du job : {output}")
 
         try:
+            # CORRECTION : Utiliser l'heure locale du conteneur
+            now = datetime.datetime.now()
             pdf_bytes = generate_report(
                 "stdout_report.html",
                 {
                     "module": mod,
                     "params": params,
                     "output": output,
-                    "date": datetime.datetime.utcnow(),
+                    "date": now,
                 },
             )
-
             cipher = encrypt(pdf_bytes)
-            pdf_name = f"{module_name.replace(' ', '_')}_{datetime.datetime.utcnow():%Y%m%d%H%M}.pdf"
-
+            # CORRECTION : Utiliser la même variable 'now' pour le nom du fichier
+            pdf_name = f"{module_name.replace(' ', '_')}_{now:%Y%m%d%H%M}.pdf"
             report = Report(user_sub=user_sub, filename=pdf_name, pdf_data=cipher)
-
             db.session.add(report)
             db.session.commit()
-
-            logging.info(f"Rapport #{report.id} ('{pdf_name}') sauvegardé avec succès.")
-            return report.id
-
+            logging.info(f"Rapport #{report.id} ('{pdf_name}') sauvegardé.")
+            return {"report_id": report.id}
         except Exception as e:
-            logging.error(
-                f"Erreur lors de la génération ou sauvegarde du PDF : {e}",
-                exc_info=True,
-            )
+            logging.error(f"Erreur PDF: {e}", exc_info=True)
             db.session.rollback()
-            return None
+            return {"error": "Erreur lors de la génération du rapport PDF."}
 
 
 @celery.task(name="tsar.check_scheduled_tasks")

@@ -36,13 +36,9 @@
        ======================================================== */
     .wrapper {
       padding: 1cm;
-      /* On peut définir une largeur max si besoin, mais pour PDF, 
-         on étend simplement sur toute la largeur disponible. */
       box-sizing: border-box;
       width: 100%;
       height: 100%;
-      /* Le fond de la wrapper est transparent : le body a déjà 
-         le fond sombre global. */
     }
 
     /* ===================== Titres ===================== */
@@ -105,7 +101,6 @@
       font-size: 0.75rem;
       text-align: center;
       color: #888;
-      /* On rajoute un peu de padding pour ne pas coller au bas de page */
       padding-bottom: 1rem;
     }
   </style>
@@ -115,7 +110,8 @@
     <!-- Titre principal -->
     <h1>{{ module.name }} (Rapport)</h1>
     <p style="margin: 0; font-size: 0.9rem; color: #aaa;">
-      Date : {{ date }}
+      <!-- CORRECTION : Formatage de la date et de l'heure -->
+      Date : {{ date.strftime('%d/%m/%Y à %Hh%M') }}
     </p>
 
     <!-- Section Paramètres -->
@@ -141,10 +137,12 @@
 
     {# 3) On parcourt chaque ligne et on détecte "===== Debut section X =====" #}
     {% for line in raw_lines %}
-      {% if "===== Debut section" in line %}
-        {% set parts = line.split("Debut section")[1].split("====") %}
+      {% if "===== Début section" in line %}
+        {% set parts = line.split("Début section")[1].split("=====") %}
         {% set sec_name = parts[0].strip().lower() %}
-        {% set _ = ns.sections.append(current) %}
+        {% if current.lines %}
+          {% set _ = ns.sections.append(current) %}
+        {% endif %}
         {% set current = {"name": sec_name, "lines": []} %}
       {% else %}
         {% set _ = current.lines.append(line) %}
@@ -174,9 +172,8 @@
 
     <!-- Pied de page -->
     <div class="footer">
-      Généré par TSAR Toolbox – {{ date.strftime('%Y-%m-%d %H:%M') }}
+      Généré par TSAR Toolbox – {{ date.strftime('%d/%m/%Y %H:%M') }}
     </div>
   </div>
 </body>
 </html>
-

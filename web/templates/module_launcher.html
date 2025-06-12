@@ -162,8 +162,8 @@
   </div>
 
   <!-- Zone de notification pour le polling -->
-  <div id="notification-zone" class="hidden mt-8 text-center">
-    <!-- ... (votre code de notification existant) ... -->
+  <div id="notification-zone" class="hidden mt-8">
+    <!-- Le contenu sera injecté par JavaScript -->
   </div>
 </div>
 
@@ -262,7 +262,6 @@
     }
   }
 
-  // --- Fonction pour copier l'IP publique ---
   function copyPublicIp() {
     const detectedIp = document.getElementById('detected-public-ip').textContent;
     const ipInput = document.getElementById('public_ip');
@@ -273,18 +272,110 @@
 
   // --- Initialisation et Polling ---
   document.addEventListener('DOMContentLoaded', function() {
-    // Initialiser tous les sélecteurs de cible
     initTargetSelector('target-selector-main');
     initTargetSelector('target-selector-vpn');
 
-    // Initialiser l'affichage du formulaire VPN s'il existe
     if (document.querySelector('input[name="action"]')) {
       toggleFields();
     }
     
-    // Le reste de votre script de polling (inchangé)
     const form = document.getElementById('module-launcher-form');
-    // ... (le reste du script de polling est inchangé) ...
+    const launchBtn = document.getElementById('launch-btn');
+    const notificationZone = document.getElementById('notification-zone');
+
+    if (form) {
+      form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        launchBtn.disabled = true;
+        
+        notificationZone.innerHTML = '';
+        notificationZone.classList.remove('hidden');
+        
+        const loadingHtml = `
+          <div class="bg-translucent p-6 rounded-2xl shadow-lg text-center">
+            <div class="inline-flex items-center">
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-[var(--tsar-accent)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              <span>Exécution en cours...</span>
+            </div>
+          </div>`;
+        notificationZone.innerHTML = loadingHtml;
+
+        const formData = new FormData(form);
+        // CORRECTION ICI : Utiliser getAttribute('action')
+        fetch(form.getAttribute('action'), {
+          method: 'POST',
+          body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.job_id) {
+            pollJobStatus(data.job_id);
+          } else {
+            showError(data.error || 'Erreur lors du lancement de la tâche.');
+          }
+        })
+        .catch(error => {
+          console.error('Erreur de soumission:', error);
+          showError('Erreur de soumission.');
+        });
+      });
+    }
+
+    function pollJobStatus(jobId) {
+      const interval = setInterval(() => {
+        fetch(`/job/status/${jobId}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.state === 'SUCCESS') {
+              clearInterval(interval);
+              handleSuccess(data.result);
+            } else if (data.state === 'FAILURE') {
+              clearInterval(interval);
+              showError(data.error || 'Erreur lors de l\'exécution de la tâche.');
+            }
+          })
+          .catch(error => {
+            clearInterval(interval);
+            showError('Erreur de communication avec le serveur.');
+          });
+      }, 3000);
+    }
+
+    function handleSuccess(result) {
+        launchBtn.disabled = false;
+        let successHtml = '';
+
+        if (result.one_liner) {
+            successHtml = `
+                <div class="bg-translucent p-6 rounded-2xl shadow-lg text-left">
+                    <h3 class="text-lg font-semibold text-green-400 mb-2">Configuration Générée !</h3>
+                    <p class="text-gray-300 mb-4">Exécutez la commande suivante sur votre machine "implant" pour établir la connexion :</p>
+                    <pre class="bg-[#111] p-4 rounded-lg text-white whitespace-pre-wrap break-all text-sm">${result.one_liner}</pre>
+                    <p class="text-xs text-gray-500 mt-4">Note : Ce lien de configuration est à usage unique et expirera dans 5 minutes.</p>
+                </div>`;
+        } else if (result.report_id) {
+            successHtml = `
+                <div class="bg-translucent p-6 rounded-2xl shadow-lg text-center">
+                    <p class="text-green-400">Tâche terminée avec succès !</p>
+                    <p class="text-gray-300">Redirection vers la page des rapports...</p>
+                </div>`;
+            setTimeout(() => {
+                window.location.href = "{{ url_for('routes.reports') }}";
+            }, 2000);
+        } else if (result.error) {
+            showError(result.error);
+            return;
+        } else {
+            successHtml = `<div class="bg-translucent p-6 rounded-2xl shadow-lg text-center text-green-400">Opération terminée avec succès.</div>`;
+        }
+        notificationZone.innerHTML = successHtml;
+    }
+
+    function showError(message) {
+      launchBtn.disabled = false;
+      const errorHtml = `<div class="bg-red-900/30 p-6 rounded-2xl shadow-lg text-center text-red-400">${message}</div>`;
+      notificationZone.innerHTML = errorHtml;
+    }
   });
 </script>
 {% endblock %}

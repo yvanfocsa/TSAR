@@ -42,6 +42,7 @@ from flask_login import (
     logout_user,
 )
 from pdfminer.high_level import extract_text
+from redis import Redis # NOUVEAU : Import pour la route VPN
 
 from . import db
 from .models import Report, ScanLog, ScheduledTask, UserProfile
@@ -204,11 +205,9 @@ def module_launcher(name: str):
     if not mod:
         abort(404)
 
-    # NOUVEAU : Détecter l'IP publique spécifiquement pour le module VPN
     public_ip = None
     if name == 'IoT - Pivot VPN':
         try:
-            # On ne garde que l'IP publique de la fonction helper
             public_ip = requests.get("https://api.ipify.org", timeout=2).text
         except requests.RequestException:
             public_ip = "Détection échouée"
@@ -252,6 +251,29 @@ def job_status(job_id: str):
     if task.state == "FAILURE":
         response["error"] = str(task.info)
     return jsonify(response)
+
+
+# NOUVEAU : Route pour servir la configuration VPN
+@bp.route("/vpn/config/<token>")
+def download_vpn_config(token: str):
+    """Sert un fichier de configuration VPN à usage unique."""
+    try:
+        redis_client = Redis.from_url(current_app.config["CELERY_BROKER_URL"])
+        redis_key = f"vpn_config:{token}"
+        
+        config_data = redis_client.getdel(redis_key)
+        
+        if not config_data:
+            abort(404, "Configuration non trouvée ou déjà utilisée.")
+            
+        return Response(
+            config_data,
+            mimetype="text/plain",
+            headers={"Content-Disposition": "attachment;filename=wg0.conf"}
+        )
+    except Exception as e:
+        current_app.logger.error(f"Erreur lors du téléchargement de la config VPN: {e}")
+        abort(500)
 
 
 # ─────────── FAVORIS ───────────

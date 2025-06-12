@@ -1,6 +1,5 @@
 ###############################################################################
 #                    Dockerfile – Conteneur “web” (Flask)                     #
-#                  ➜ stack 100 % locale, sans IA / HF cache                   #
 ###############################################################################
 
 FROM python:3.12-slim
@@ -12,7 +11,18 @@ ENV PYTHONDONTWRITEBYTECODE=1  \
 
 # ────────────────────────── Dépendances système utiles ───────────────────────
 # FIX: Toutes les commandes sur une seule ligne pour éviter les erreurs de parsing.
-RUN apt-get update && apt-get install -y --no-install-recommends gcc python3-dev build-essential wkhtmltopdf ca-certificates && update-ca-certificates && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    build-essential \
+    wkhtmltopdf \
+    ca-certificates \
+    tzdata \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# NOUVEAU : Configuration du fuseau horaire
+ENV TZ=Europe/Paris
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # ─────────────────────────── Install deps Python ─────────────────────────────
 COPY web/requirements.txt .

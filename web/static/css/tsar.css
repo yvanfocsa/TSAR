@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== PALETTE COLORS ===== */
+/* ===== PALETTE DE COULEURS ===== */
 :root {
   --tsar-bg: #0f0f0f;
   --tsar-card: #1e1e1e;
@@ -12,7 +12,7 @@
   --tsar-accent-translucent: rgba(232, 69, 69, 0.3);
 }
 
-/* ===== BASE ===== */
+/* ===== STYLES DE BASE ===== */
 body {
   background: var(--tsar-bg);
   color: var(--tsar-text);
@@ -20,13 +20,6 @@ body {
   font-feature-settings: "ss01";
 }
 
-/* ===== UTILITY POUR FOND TRANSLUCIDE + FLOU ===== */
-.bg-translucent {
-  background-color: rgba(30, 30, 30, 0.6);
-  backdrop-filter: blur(8px);
-}
-
-/* ===== LIENS ===== */
 a {
   color: var(--tsar-accent);
   transition: color 0.2s;
@@ -35,35 +28,32 @@ a:hover {
   color: var(--tsar-accent2);
 }
 
-/* ------------------------------------------------------------------
-   BOUTONS
-------------------------------------------------------------------- */
-.btn {
-  @apply inline-block px-6 py-3
-         bg-[var(--tsar-accent)] text-black
-         rounded-lg font-semibold shadow-md
-         border-2 border-[var(--tsar-accent)]
-         transition-all duration-150;
+/* ===== UTILITAIRES ===== */
+.bg-translucent {
+  background-color: rgba(30, 30, 30, 0.6);
+  backdrop-filter: blur(8px);
 }
-.btn:hover {
-  @apply bg-[var(--tsar-accent2)] border-[var(--tsar-accent2)] text-black;
+
+/* --- Barre de défilement thématique --- */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
 }
-.btn-secondary {
-  @apply inline-block px-6 py-3
-         bg-transparent text-[var(--tsar-accent)]
-         border-2 border-[var(--tsar-accent)]
-         rounded-lg font-semibold shadow-sm
-         transition-all;
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
 }
-.btn-secondary:hover {
-  @apply bg-[var(--tsar-accent)] text-black;
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--tsar-accent);
+  border-radius: 4px;
+  border: 2px solid var(--tsar-card);
 }
-a.btn,
-a.btn:hover,
-a.btn-anim,
-a.btn-anim:hover {
-  color: #000 !important;
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: var(--tsar-accent2);
 }
+
+
+/* ===== COMPOSANTS PERSONNALISÉS ===== */
+
+/* --- Correction pour les liens stylisés en boutons --- */
 a.bg-\[var\(--tsar-accent\)\],
 a.bg-\[var\(--tsar-accent\)\]:hover,
 a.bg-\[var\(--tsar-accent2\)\],
@@ -71,7 +61,7 @@ a.bg-\[var\(--tsar-accent2\)\]:hover {
   color: #000 !important;
 }
 
-/* ===== ÉTOILE FAVORIS ===== */
+/* --- Étoile Favoris --- */
 .fav-btn {
   background: none;
   border: none;
@@ -83,17 +73,6 @@ a.bg-\[var\(--tsar-accent2\)\]:hover {
   box-shadow: none !important;
   transition: transform 0.15s;
 }
-.fav-btn.outline {
-  color: transparent !important;
-  -webkit-text-stroke: 1px var(--tsar-accent);
-}
-.fav-btn.filled {
-  color: var(--tsar-accent) !important;
-}
-.fav-btn:focus {
-  outline: none !important;
-  box-shadow: none !important;
-}
 .fav-btn:hover {
   transform: scale(1.15);
 }
@@ -101,48 +80,53 @@ a.bg-\[var\(--tsar-accent2\)\]:hover {
   transform: scale(1.25);
 }
 
-/* ===== TERMINAL LIVE ===== */
-.terminal-wrapper {
-  background: #000;
-  height: 32rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 0 10px rgba(0,0,0,0.4);
-  overflow: hidden;
+/* --- Sélecteur de cible (STYLE FINAL) --- */
+.target-selector {
+  @apply relative;
 }
-.terminal-output {
-  font-family: "Fira Code", "Courier New", monospace;
-  color: #3cff90;
-  padding: 1rem;
-  white-space: pre-wrap;
-  line-height: 1.4;
+.target-dropdown {
+  @apply absolute top-full left-0 right-0 mt-2 bg-gradient-to-b from-[#2a2a2a] to-[var(--tsar-card)] border border-[var(--tsar-accent)] rounded-lg z-20 max-h-72 overflow-y-auto scrollbar-thin;
+  box-shadow: 0 8px 30px var(--tsar-accent-translucent);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
 }
-
-/* ===== SCROLLBAR THIN ===== */
-.scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
+.target-dropdown.hidden {
+  @apply opacity-0 pointer-events-none;
+  transform: translateY(-10px);
 }
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #444;
-  border-radius: 3px;
+.target-dropdown-search {
+  @apply sticky top-0 w-full p-3 bg-[#0f0f0f] border-b-2 border-[var(--tsar-accent)] text-white placeholder-gray-500 focus:outline-none;
+  transition: border-color 0.2s;
 }
-
-/* ===== SIDEBAR BUTTONS ===== */
-aside nav {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
+.target-dropdown-group {
+  @apply px-4 pt-3 pb-2 text-sm font-bold text-[var(--tsar-accent)] border-b border-[#333];
 }
-aside nav a {
-  @apply btn;
+.target-dropdown-item {
+  /* Indentation pour la hiérarchie */
+  @apply py-2 pl-8 pr-4 text-gray-300 cursor-pointer border-l-2 border-transparent;
+  transition: all 0.2s ease-in-out;
 }
-aside nav a.bg-\[var\(--tsar-accent\)\].text-black:hover {
-  background-color: var(--tsar-accent) !important;
-  border-color: var(--tsar-accent) !important;
-  cursor: default;
+.target-dropdown-item:hover {
+  background: var(--tsar-accent-translucent);
+  border-left-color: var(--tsar-accent);
+  color: white;
+}
+.target-dropdown-item small {
+  @apply text-gray-500 ml-2;
+  transition: color 0.2s;
+}
+.target-dropdown-item:hover small {
+  @apply text-gray-400;
 }
 
-/* ===== VEILLE – SÉPARATION DES PARAGRAPHS ===== */
+/* --- Module VPN : Affichage IP --- */
+.public-ip-display {
+  @apply bg-[#111] border border-[#333] rounded-lg p-3 flex items-center justify-between mb-2;
+}
+.copy-ip-btn {
+  @apply p-2 rounded-md text-gray-400 hover:bg-[var(--tsar-accent)] hover:text-black transition-colors;
+}
+
+/* --- Page Veille --- */
 .veille-summary p {
   border-bottom: 1px solid var(--tsar-accent);
   margin-bottom: 1rem;
@@ -154,81 +138,11 @@ aside nav a.bg-\[var\(--tsar-accent\)\].text-black:hover {
   padding-bottom: 0;
 }
 
-/* ===== RAPPORTS – ÉVITER LE DÉBORDEMENT ===== */
+/* --- Page Rapports --- */
 .report-card {
   overflow: hidden;
   max-width: 100%;
 }
 .report-card h3 {
   overflow-wrap: break-word;
-}
-
-/* ===== MODULES PAGE (CARDS + BOUTON LANCER) ===== */
-@layer components {
-  .module-card {
-    @apply bg-translucent p-6 rounded-2xl shadow-lg
-           flex flex-col justify-between
-           transition-all duration-300 ease-in-out;
-  }
-  .module-card:hover {
-    @apply -translate-y-1 shadow-2xl;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.2), 0 0 20px var(--tsar-accent-translucent);
-  }
-  .btn-anim {
-    @apply inline-flex items-center gap-2
-           px-5 py-2 bg-[var(--tsar-accent)]
-           text-black font-semibold rounded-2xl
-           shadow-md transition-all duration-200
-           ease-in-out transform;
-  }
-  .btn-anim:hover {
-    @apply bg-[var(--tsar-accent2)] text-black
-           shadow-xl scale-105;
-  }
-  .btn-anim:focus {
-    @apply outline-none ring-2 ring-[var(--tsar-accent)];
-  }
-}
-
-/* ===== NOUVEAU : Menu déroulant de cible personnalisé ===== */
-.target-selector {
-  @apply relative;
-}
-
-.target-selector-button {
-  @apply w-full px-4 py-3 bg-[#111] border-2 border-[#333] rounded-lg text-white
-         flex justify-between items-center
-         focus:ring-2 focus:ring-[var(--tsar-accent)] focus:border-[var(--tsar-accent)]
-         transition-all duration-200 cursor-pointer;
-}
-
-.target-selector-button .placeholder {
-  @apply text-gray-500;
-}
-
-.target-dropdown {
-  @apply absolute top-full left-0 right-0 mt-2
-         bg-[#1e1e1e] border-2 border-[#333] rounded-lg
-         shadow-2xl z-20 max-h-64 overflow-y-auto scrollbar-thin;
-}
-
-.target-dropdown-search {
-  @apply w-full p-3 bg-[#111] border-b-2 border-[#333] text-white
-         focus:outline-none focus:border-[var(--tsar-accent)];
-}
-
-.target-dropdown-group {
-  @apply px-4 pt-3 pb-1 text-xs font-bold uppercase text-gray-500;
-}
-
-.target-dropdown-item {
-  @apply px-4 py-2 text-white cursor-pointer hover:bg-[var(--tsar-accent)] hover:text-black;
-}
-
-.target-dropdown-item small {
-  @apply text-gray-400 ml-2;
-}
-
-.target-dropdown-item:hover small {
-  @apply text-gray-800;
 }

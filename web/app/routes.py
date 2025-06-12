@@ -9,17 +9,13 @@ Stack 100 % locale (pas d'IA) + Celery :
 
 from __future__ import annotations
 
-import difflib
 import io
-import json
 import re  # ← Import pour les expressions régulières
-import shlex  # ← pour wrapper PID
 import socket
 from datetime import datetime, time, timedelta
 from io import BytesIO
 from typing import Any
 
-import docker
 import feedparser
 import psutil
 import requests
@@ -35,7 +31,6 @@ from flask import (
     request,
     send_file,
     session,
-    stream_with_context,
     url_for,
 )
 from flask_login import (
@@ -208,7 +203,17 @@ def module_launcher(name: str):
     mod = next((m for m in MODULES if m["name"] == name), None)
     if not mod:
         abort(404)
-    return render_template("module_launcher.html", mod=mod)
+
+    # NOUVEAU : Détecter l'IP publique spécifiquement pour le module VPN
+    public_ip = None
+    if name == 'IoT - Pivot VPN':
+        try:
+            # On ne garde que l'IP publique de la fonction helper
+            public_ip = requests.get("https://api.ipify.org", timeout=2).text
+        except requests.RequestException:
+            public_ip = "Détection échouée"
+
+    return render_template("module_launcher.html", mod=mod, public_ip=public_ip)
 
 
 @bp.route("/modules/<name>/run", methods=["POST"])

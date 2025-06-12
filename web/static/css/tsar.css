@@ -189,3 +189,46 @@ aside nav a.bg-\[var\(--tsar-accent\)\].text-black:hover {
     @apply outline-none ring-2 ring-[var(--tsar-accent)];
   }
 }
+
+/* ===== NOUVEAU : Menu déroulant de cible personnalisé ===== */
+.target-selector {
+  @apply relative;
+}
+
+.target-selector-button {
+  @apply w-full px-4 py-3 bg-[#111] border-2 border-[#333] rounded-lg text-white
+         flex justify-between items-center
+         focus:ring-2 focus:ring-[var(--tsar-accent)] focus:border-[var(--tsar-accent)]
+         transition-all duration-200 cursor-pointer;
+}
+
+.target-selector-button .placeholder {
+  @apply text-gray-500;
+}
+
+.target-dropdown {
+  @apply absolute top-full left-0 right-0 mt-2
+         bg-[#1e1e1e] border-2 border-[#333] rounded-lg
+         shadow-2xl z-20 max-h-64 overflow-y-auto scrollbar-thin;
+}
+
+.target-dropdown-search {
+  @apply w-full p-3 bg-[#111] border-b-2 border-[#333] text-white
+         focus:outline-none focus:border-[var(--tsar-accent)];
+}
+
+.target-dropdown-group {
+  @apply px-4 pt-3 pb-1 text-xs font-bold uppercase text-gray-500;
+}
+
+.target-dropdown-item {
+  @apply px-4 py-2 text-white cursor-pointer hover:bg-[var(--tsar-accent)] hover:text-black;
+}
+
+.target-dropdown-item small {
+  @apply text-gray-400 ml-2;
+}
+
+.target-dropdown-item:hover small {
+  @apply text-gray-800;
+}

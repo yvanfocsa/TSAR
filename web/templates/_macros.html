@@ -1,0 +1,70 @@
+{# web/templates/_macros.html #}
+
+{% macro target_selector(id_prefix, name='target', placeholder='Sélectionner ou entrer une cible...') %}
+<div class="target-selector" id="target-selector-{{ id_prefix }}">
+    <input type="text" name="{{ name }}" id="target-input-{{ id_prefix }}"
+           class="w-full px-4 py-2 bg-[#111] border border-[#333] rounded focus:ring-[var(--tsar-accent)]"
+           placeholder="{{ placeholder }}"
+           autocomplete="off">
+    <div class="target-dropdown hidden" id="target-dropdown-{{ id_prefix }}">
+      <input type="text" class="target-dropdown-search" 
+             id="target-search-{{ id_prefix }}" placeholder="Rechercher...">
+      <div class="target-options-list">
+        
+        <div class="target-dropdown-group">Tests Locaux</div>
+        <div class="target-dropdown-item" data-value="127.0.0.1">127.0.0.1 <small>Localhost</small></div>
+
+        <div class="target-dropdown-group">Passerelles Communes</div>
+        <div class="target-dropdown-item" data-value="192.168.1.1">192.168.1.1</div>
+        <div class="target-dropdown-item" data-value="192.168.0.1">192.168.0.1</div>
+        <div class="target-dropdown-item" data-value="192.168.1.254">192.168.1.254</div>
+        <div class="target-dropdown-item" data-value="10.0.0.1">10.0.0.1</div>
+        
+        <div class="target-dropdown-group">Réseaux Domestiques / SOHO</div>
+        <div class="target-dropdown-item" data-value="192.168.1.0/24">192.168.1.0/24</div>
+        <div class="target-dropdown-item" data-value="192.168.0.0/24">192.168.0.0/24</div>
+        
+        <div class="target-dropdown-group">Réseaux d'Entreprise (172.16.x.x)</div>
+        <div class="target-dropdown-item" data-value="172.16.0.0/12">172.16.0.0/12 <small>Tout le bloc privé</small></div>
+        <div class="target-dropdown-item" data-value="172.17.0.0/16">172.17.0.0/16 <small>Réseau Docker par défaut</small></div>
+
+        <div class="target-dropdown-group">Grands Réseaux (10.x.x.x)</div>
+        <div class="target-dropdown-item" data-value="10.0.0.0/8">10.0.0.0/8 <small>Tout le bloc privé</small></div>
+        <div class="target-dropdown-item" data-value="10.10.10.0/24">10.10.10.0/24 <small>Exemple de VLAN</small></div>
+
+      </div>
+    </div>
+  </div>
+<script>
+  // La fonction JS est maintenant à l'extérieur pour n'être déclarée qu'une fois
+  if (typeof window.initTargetSelector !== 'function') {
+    window.initTargetSelector = function(selectorId) {
+      const selector = document.getElementById(selectorId);
+      if (!selector) return;
+
+      const input = selector.querySelector('input[type="text"]');
+      const dropdown = selector.querySelector('.target-dropdown');
+      const search = selector.querySelector('.target-dropdown-search');
+      const items = selector.querySelectorAll('.target-dropdown-item');
+
+      input.addEventListener('focus', () => dropdown.classList.remove('hidden'));
+      document.addEventListener('click', (e) => {
+        if (!selector.contains(e.target)) dropdown.classList.add('hidden');
+      });
+      items.forEach(item => {
+        item.addEventListener('click', () => {
+          input.value = item.dataset.value;
+          dropdown.classList.add('hidden');
+        });
+      });
+      search.addEventListener('input', () => {
+        const filter = search.value.toLowerCase();
+        items.forEach(item => {
+          const text = item.textContent.toLowerCase();
+          item.style.display = text.includes(filter) ? '' : 'none';
+        });
+      });
+    }
+  }
+</script>
+{% endmacro %}

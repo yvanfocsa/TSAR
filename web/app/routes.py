@@ -10,16 +10,16 @@ Stack 100 % locale (pas d'IA) + Celery :
 from __future__ import annotations
 
 import io
-import re  # ← Import pour les expressions régulières
+import re
 import socket
-from datetime import datetime, time, timedelta
+from datetime import datetime, time
 from io import BytesIO
 from typing import Any
 
 import feedparser
 import psutil
 import requests
-from bs4 import BeautifulSoup  # ← pour nettoyer le contenu RSS
+from bs4 import BeautifulSoup
 from flask import (
     Blueprint,
     Response,
@@ -42,7 +42,7 @@ from flask_login import (
     logout_user,
 )
 from pdfminer.high_level import extract_text
-from redis import Redis # NOUVEAU : Import pour la route VPN
+from redis import Redis
 
 from . import db
 from .models import Report, ScanLog, ScheduledTask, UserProfile
@@ -166,8 +166,6 @@ def index():
 @login_required
 def modules_home():
     cats = get_categories()
-
-    # Définir l'ordre souhaité pour les catégories PTES et autres
     ptes_order = [
         "PTES - Phase 2",
         "PTES - Phase 4",
@@ -177,8 +175,6 @@ def modules_home():
         "Web",
         "OSINT",
     ]
-
-    # Trier les catégories en fonction de la liste `ptes_order`
     sorted_cats = dict(
         sorted(
             cats.items(),
@@ -187,7 +183,6 @@ def modules_home():
             else len(ptes_order),
         )
     )
-
     return render_template("modules.html", cats=sorted_cats)
 
 
@@ -206,13 +201,15 @@ def module_launcher(name: str):
         abort(404)
 
     public_ip = None
-    if name == 'IoT - Pivot VPN':
+    if name == "IoT - Pivot VPN":
         try:
             public_ip = requests.get("https://api.ipify.org", timeout=2).text
         except requests.RequestException:
             public_ip = "Détection échouée"
 
-    return render_template("module_launcher.html", mod=mod, public_ip=public_ip)
+    return render_template(
+        "module_launcher.html", mod=mod, public_ip=public_ip
+    )
 
 
 @bp.route("/modules/<name>/run", methods=["POST"])
@@ -253,26 +250,27 @@ def job_status(job_id: str):
     return jsonify(response)
 
 
-# NOUVEAU : Route pour servir la configuration VPN
 @bp.route("/vpn/config/<token>")
 def download_vpn_config(token: str):
     """Sert un fichier de configuration VPN à usage unique."""
     try:
         redis_client = Redis.from_url(current_app.config["CELERY_BROKER_URL"])
         redis_key = f"vpn_config:{token}"
-        
+
         config_data = redis_client.getdel(redis_key)
-        
+
         if not config_data:
             abort(404, "Configuration non trouvée ou déjà utilisée.")
-            
+
         return Response(
             config_data,
             mimetype="text/plain",
-            headers={"Content-Disposition": "attachment;filename=wg0.conf"}
+            headers={"Content-Disposition": "attachment;filename=wg0.conf"},
         )
     except Exception as e:
-        current_app.logger.error(f"Erreur lors du téléchargement de la config VPN: {e}")
+        current_app.logger.error(
+            f"Erreur lors du téléchargement de la config VPN: {e}"
+        )
         abort(500)
 
 
@@ -306,7 +304,7 @@ def reports():
         .all()
     )
     mod_report = next(
-        (m for m in MODULES if m["name"] == "7. Reporting"), None
+        (m for m in MODULES if m.get("name") == "7. Reporting"), None
     )
     targets = (
         ScanLog.query.filter_by(user_sub=current_user.sub)
@@ -343,13 +341,10 @@ def download_report(rid: int):
 def delete_report(rid: int):
     """Supprime un rapport spécifique."""
     rep = Report.query.get_or_404(rid)
-
     if rep.user_sub != current_user.sub:
         abort(403)
-
     db.session.delete(rep)
     db.session.commit()
-
     return redirect(url_for("routes.reports"))
 
 
@@ -391,7 +386,6 @@ def compare_reports():
             )
 
         comparison = compare_texts(text1, text2)
-
         return render_template(
             "compare_results.html",
             report1=report1,
@@ -454,11 +448,9 @@ def cve_analysis():
     )
 
     if request.method == "POST":
-        job_id = None
+        job = None
         analysis_target = None
-        task_name = None
 
-        # Scénario 1: Analyse par ID de CVE
         if "cve_id" in request.form and request.form["cve_id"]:
             cve_id = request.form.get("cve_id", "").strip()
             job = current_app.celery.send_task(
@@ -466,10 +458,11 @@ def cve_analysis():
             )
             analysis_target = cve_id
 
-        # Scénario 2: Analyse par composants d'un rapport
         elif "report_id" in request.form and request.form["report_id"]:
             report_id = int(request.form["report_id"])
-            report = Report.query.get(report_id)
+            report = Report.query.get_or_404(report_id)
+            if report.user_sub != current_user.sub:
+                abort(403)
             job = current_app.celery.send_task(
                 "tsar.run_inference_analysis",
                 args=[report_id, current_user.sub],
@@ -499,17 +492,14 @@ def cve_analysis():
 def profile():
     """Page de paramètres du compte utilisateur."""
     profile = UserProfile.query.filter_by(user_sub=current_user.sub).first()
-
     scan_count = ScanLog.query.filter_by(user_sub=current_user.sub).count()
     report_count = Report.query.filter_by(user_sub=current_user.sub).count()
     favorite_count = len(session.get("favorites", []))
-
     stats = {
         "scans": scan_count,
         "reports": report_count,
         "favorites": favorite_count,
     }
-
     return render_template("profile.html", profile=profile, stats=stats)
 
 
@@ -532,7 +522,6 @@ def update_profile():
             avatar_file.seek(0, 2)
             file_size = avatar_file.tell()
             avatar_file.seek(0)
-
             if file_size <= 5 * 1024 * 1024:
                 profile.avatar_data = avatar_file.read()
                 profile.avatar_mime = avatar_file.mimetype
@@ -548,7 +537,6 @@ def profile_avatar():
     profile = UserProfile.query.filter_by(user_sub=current_user.sub).first()
     if not profile or not profile.avatar_data:
         abort(404)
-
     return Response(
         profile.avatar_data, mimetype=profile.avatar_mime or "image/jpeg"
     )
@@ -588,11 +576,6 @@ def create_scheduled_task():
     except ValueError:
         schedule_time = time(9, 0)
 
-    now = datetime.utcnow()
-    next_run = _calculate_next_run(
-        now, schedule_type, schedule_time, schedule_day
-    )
-
     task = ScheduledTask(
         user_sub=current_user.sub,
         name=name,
@@ -602,8 +585,9 @@ def create_scheduled_task():
         schedule_type=schedule_type,
         schedule_time=schedule_time,
         schedule_day=int(schedule_day) if schedule_day else None,
-        next_run=next_run,
     )
+    # La logique de calcul est maintenant dans le modèle
+    task.next_run = task.calculate_next_run()
 
     db.session.add(task)
     db.session.commit()
@@ -617,7 +601,6 @@ def toggle_scheduled_task(task_id: int):
     task = ScheduledTask.query.get_or_404(task_id)
     if task.user_sub != current_user.sub:
         abort(403)
-
     task.is_active = not task.is_active
     db.session.commit()
     return redirect(url_for("routes.scheduled_tasks"))
@@ -630,44 +613,9 @@ def delete_scheduled_task(task_id: int):
     task = ScheduledTask.query.get_or_404(task_id)
     if task.user_sub != current_user.sub:
         abort(403)
-
     db.session.delete(task)
     db.session.commit()
     return redirect(url_for("routes.scheduled_tasks"))
-
-
-def _calculate_next_run(
-    now, schedule_type, schedule_time, schedule_day=None
-):
-    """Calcule la prochaine exécution d'une tâche."""
-    next_date = now.date()
-
-    if schedule_type == "daily":
-        if now.time() >= schedule_time:
-            next_date += timedelta(days=1)
-
-    elif schedule_type == "weekly":
-        target_weekday = int(schedule_day) if schedule_day else 0
-        days_ahead = target_weekday - now.weekday()
-        if days_ahead <= 0:
-            days_ahead += 7
-        next_date += timedelta(days=days_ahead)
-
-    elif schedule_type == "monthly":
-        target_day = int(schedule_day) if schedule_day else 1
-        if now.day <= target_day and now.time() < schedule_time:
-            next_date = next_date.replace(day=target_day)
-        else:
-            if now.month == 12:
-                next_date = next_date.replace(
-                    year=now.year + 1, month=1, day=target_day
-                )
-            else:
-                next_date = next_date.replace(
-                    month=now.month + 1, day=target_day
-                )
-
-    return datetime.combine(next_date, schedule_time)
 
 
 # ─────────── FLUX RSS VEILLE ───────────

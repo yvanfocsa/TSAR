@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import target_selector with context %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto py-12">
@@ -58,96 +59,57 @@
           
           <div id="target-container-vpn" class="hidden">
             <label for="target-input-vpn" class="block text-sm font-medium mb-2 text-gray-200">Cible du Scan</label>
-            <div class="target-selector" id="target-selector-vpn">
-                <input type="text" name="target" id="target-input-vpn"
-                       class="w-full px-4 py-2 bg-[#111] border border-[#333] rounded focus:ring-[var(--tsar-accent)]"
-                       placeholder="Sélectionner ou entrer une cible..."
-                       autocomplete="off">
-                <div class="target-dropdown hidden" id="target-dropdown-vpn">
-                  <input type="text" class="target-dropdown-search" 
-                         id="target-search-vpn" placeholder="Rechercher une IP ou une plage...">
-                  <div class="target-options-list">
-                    
-                    <div class="target-dropdown-group">Passerelles Communes</div>
-                    <div class="target-dropdown-item" data-value="192.168.1.1">192.168.1.1</div>
-                    <div class="target-dropdown-item" data-value="192.168.0.1">192.168.0.1</div>
-                    <div class="target-dropdown-item" data-value="192.168.1.254">192.168.1.254</div>
-                    <div class="target-dropdown-item" data-value="10.0.0.1">10.0.0.1</div>
-                    
-                    <div class="target-dropdown-group">Réseaux Domestiques / SOHO</div>
-                    <div class="target-dropdown-item" data-value="192.168.1.0/24">192.168.1.0/24</div>
-                    <div class="target-dropdown-item" data-value="192.168.0.0/24">192.168.0.0/24</div>
-                    <div class="target-dropdown-item" data-value="10.0.0.0/24">10.0.0.0/24</div>
-                    
-                    <div class="target-dropdown-group">Réseaux d'Entreprise (192.168.x.x)</div>
-                    <div class="target-dropdown-item" data-value="192.168.0.0/16">192.168.0.0/16 <small>Tout le réseau</small></div>
-                    <div class="target-dropdown-item" data-value="192.168.10.0/24">192.168.10.0/24</div>
-                    <div class="target-dropdown-item" data-value="192.168.100.0/24">192.168.100.0/24</div>
-
-                    <div class="target-dropdown-group">Réseaux d'Entreprise (172.16.x.x)</div>
-                    <div class="target-dropdown-item" data-value="172.16.0.0/12">172.16.0.0/12 <small>Tout le réseau</small></div>
-                    <div class="target-dropdown-item" data-value="172.16.0.0/16">172.16.0.0/16</div>
-                    <div class="target-dropdown-item" data-value="172.17.0.0/16">172.17.0.0/16 <small>Commun pour Docker</small></div>
-                    <div class="target-dropdown-item" data-value="172.31.0.0/16">172.31.0.0/16</div>
-
-                    <div class="target-dropdown-group">Grands Réseaux (10.x.x.x)</div>
-                    <div class="target-dropdown-item" data-value="10.0.0.0/8">10.0.0.0/8 <small>Tout le réseau</small></div>
-                    <div class="target-dropdown-item" data-value="10.0.0.0/16">10.0.0.0/16</div>
-                    <div class="target-dropdown-item" data-value="10.1.0.0/16">10.1.0.0/16</div>
-                    <div class="target-dropdown-item" data-value="10.10.10.0/24">10.10.10.0/24</div>
-                  </div>
-                </div>
-              </div>
+            {{ target_selector('vpn') }}
           </div>
         </div>
 
       {# --- FORMULAIRE UNIVERSEL POUR TOUS LES AUTRES MODULES --- #}
       {% else %}
-        {% for field in mod.schema %}
-          <div>
-            <label for="{{ field.name }}" class="block text-sm font-medium mb-2 text-gray-200">
-              {{ field.name|replace('_', ' ')|capitalize }}
-            </label>
-            
-            {% if field.name == 'target' %}
-              <div class="target-selector" id="target-selector-main">
-                <input type="text" name="target" id="target-input-main"
-                       class="w-full px-4 py-2 bg-[#111] border border-[#333] rounded focus:ring-[var(--tsar-accent)]"
-                       placeholder="Sélectionner ou entrer une cible..."
-                       autocomplete="off">
-                <div class="target-dropdown hidden" id="target-dropdown-main">
-                  <input type="text" class="target-dropdown-search" 
-                         id="target-search-main" placeholder="Rechercher une plage IP...">
-                  <div class="target-options-list">
-                    <div class="target-dropdown-group">Réseaux Domestiques / SOHO</div>
-                    <div class="target-dropdown-item" data-value="192.168.1.0/24">192.168.1.0/24</div>
-                    <div class="target-dropdown-item" data-value="192.168.0.0/24">192.168.0.0/24</div>
-                    <div class="target-dropdown-group">Réseaux d'Entreprise (172.16.x.x)</div>
-                    <div class="target-dropdown-item" data-value="172.16.0.0/12">172.16.0.0/12 <small>(172.16.0.0 - 172.31.255.255)</small></div>
-                    <div class="target-dropdown-group">Grands Réseaux (10.x.x.x)</div>
-                    <div class="target-dropdown-item" data-value="10.0.0.0/8">10.0.0.0/8 <small>(10.0.0.0 - 10.255.255.255)</small></div>
-                  </div>
+        <div class="bg-[#111] p-6 rounded-xl border border-[#333] space-y-4">
+          {# ======================= CORRECTION ICI ======================= #}
+          {# On remet la logique de rendu des champs directement ici #}
+          {% for field in mod.schema %}
+            <div>
+              <label for="{{ field.name }}" class="block text-sm font-medium mb-2 text-gray-200">
+                {{ field.name|replace('_', ' ')|capitalize }}
+              </label>
+              
+              {% if field.type == 'string' %}
+                <input type="text" name="{{ field.name }}" id="{{ field.name }}"
+                       placeholder="{{ field.placeholder or '' }}"
+                       {% if field.required %}required{% endif %}
+                       class="w-full px-4 py-2 bg-[#1e1e1e] border border-[#444] rounded focus:ring-[var(--tsar-accent)]">
+              
+              {% elif field.type == 'select' %}
+                <select name="{{ field.name }}" id="{{ field.name }}"
+                        class="w-full px-4 py-2 bg-[#1e1e1e] border border-[#444] rounded focus:ring-[var(--tsar-accent)]">
+                  {% for choice in field.choices %}
+                    <option value="{{ choice }}" {% if choice == field.default %}selected{% endif %}>
+                      {{ choice|capitalize }}
+                    </option>
+                  {% endfor %}
+                </select>
+              
+              {% elif field.type == 'multiselect' %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {% for choice in field.choices %}
+                    <label class="flex items-center p-3 bg-[#1e1e1e] hover:bg-[#2a2a2a] rounded-lg cursor-pointer transition">
+                      <input type="checkbox" name="{{ field.name }}" value="{{ choice }}"
+                             {% if choice in (field.default or []) %}checked{% endif %}
+                             class="h-5 w-5 text-[var(--tsar-accent)] rounded focus:ring-[var(--tsar-accent)]">
+                      <span class="ml-3 text-gray-200 font-medium capitalize">{{ choice }}</span>
+                    </label>
+                  {% endfor %}
                 </div>
-              </div>
+              {% endif %}
 
-            {% elif field.type == 'string' %}
-              <input type="text" name="{{ field.name }}" id="{{ field.name }}"
-                     placeholder="{{ field.placeholder or '' }}"
-                     {% if field.required %}required{% endif %}
-                     class="w-full px-4 py-2 bg-[#111] border border-[#333] rounded focus:ring-[var(--tsar-accent)]">
-
-            {% elif field.type == 'select' %}
-              <select name="{{ field.name }}" id="{{ field.name }}"
-                      class="w-full px-4 py-2 bg-[#111] border border-[#333] rounded focus:ring-[var(--tsar-accent)]">
-                {% for choice in field.choices %}
-                  <option value="{{ choice }}" {% if choice == field.default %}selected{% endif %}>
-                    {{ choice|capitalize }}
-                  </option>
-                {% endfor %}
-              </select>
-            {% endif %}
-          </div>
-        {% endfor %}
+              {% if field.description %}
+                <p class="text-xs text-gray-500 mt-2">{{ field.description }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+          {# ===================== FIN DE LA CORRECTION ===================== #}
+        </div>
       {% endif %}
 
       <!-- Bouton Lancer -->
@@ -162,220 +124,165 @@
   </div>
 
   <!-- Zone de notification pour le polling -->
-  <div id="notification-zone" class="hidden mt-8">
-    <!-- Le contenu sera injecté par JavaScript -->
-  </div>
-</div>
+  <div id="notification-zone" class="hidden mt-8"></div>
 
-<style>
-  .action-selector-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-  }
-  .action-card {
-    position: relative;
-    display: block;
-    cursor: pointer;
-  }
-  .action-card input[type="radio"] {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-  .action-card-content {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem;
-    background-color: #111;
-    border: 2px solid #333;
-    border-radius: 0.5rem;
-    transition: all 0.2s ease-in-out;
-  }
-  .action-card:hover .action-card-content {
-    border-color: var(--tsar-accent);
-  }
-  .action-card input:checked + .action-card-content {
-    background-color: var(--tsar-accent);
-    border-color: var(--tsar-accent2);
-    color: black;
-    box-shadow: 0 0 15px var(--tsar-accent-translucent);
-  }
-  .action-card-number {
-    font-weight: bold;
-    font-size: 1.25rem;
-    color: #555;
-  }
-  .action-card input:checked + .action-card-content .action-card-number {
-    color: black;
-  }
-  .action-card-text {
-    font-weight: 500;
-  }
-</style>
+  <style>
+    .action-selector-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+    .action-card { position: relative; display: block; cursor: pointer; }
+    .action-card input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+    .action-card-content { display: flex; align-items: center; gap: 0.75rem; padding: 1rem; background-color: #111; border: 2px solid #333; border-radius: 0.5rem; transition: all 0.2s ease-in-out; }
+    .action-card:hover .action-card-content { border-color: var(--tsar-accent); }
+    .action-card input:checked + .action-card-content { background-color: var(--tsar-accent); border-color: var(--tsar-accent2); color: black; box-shadow: 0 0 15px var(--tsar-accent-translucent); }
+    .action-card-number { font-weight: bold; font-size: 1.25rem; color: #555; }
+    .action-card input:checked + .action-card-content .action-card-number { color: black; }
+    .action-card-text { font-weight: 500; }
+  </style>
 
-<script>
-  // --- Logique pour le sélecteur de cible personnalisé ---
-  function initTargetSelector(selectorId) {
-    const selector = document.getElementById(selectorId);
-    if (!selector) return;
-
-    const input = selector.querySelector('input[type="text"][name="target"]');
-    const dropdown = selector.querySelector('.target-dropdown');
-    const search = selector.querySelector('.target-dropdown-search');
-    const items = selector.querySelectorAll('.target-dropdown-item');
-
-    input.addEventListener('focus', () => dropdown.classList.remove('hidden'));
-    document.addEventListener('click', (e) => {
-      if (!selector.contains(e.target)) dropdown.classList.add('hidden');
-    });
-    items.forEach(item => {
-      item.addEventListener('click', () => {
-        input.value = item.dataset.value;
-        dropdown.classList.add('hidden');
-      });
-    });
-    search.addEventListener('input', () => {
-      const filter = search.value.toLowerCase();
-      items.forEach(item => {
-        const text = item.textContent.toLowerCase();
-        item.style.display = text.includes(filter) ? '' : 'none';
-      });
-    });
-  }
-
-  // --- Logique pour le formulaire VPN ---
-  function toggleFields() {
-    const selectedAction = document.querySelector('input[name="action"]:checked').value;
-    const ipContainer = document.getElementById('public-ip-container');
-    const targetContainer = document.getElementById('target-container-vpn');
-
-    ipContainer.style.display = 'none';
-    targetContainer.style.display = 'none';
-
-    if (selectedAction === 'generate_config') {
-      ipContainer.style.display = 'block';
-    } else if (selectedAction === 'scan_network' || selectedAction === 'scan_iot_vulns') {
-      targetContainer.style.display = 'block';
-    }
-  }
-
-  function copyPublicIp() {
-    const detectedIp = document.getElementById('detected-public-ip').textContent;
-    const ipInput = document.getElementById('public_ip');
-    if (detectedIp && ipInput) {
-      ipInput.value = detectedIp;
-    }
-  }
-
-  // --- Initialisation et Polling ---
-  document.addEventListener('DOMContentLoaded', function() {
-    initTargetSelector('target-selector-main');
-    initTargetSelector('target-selector-vpn');
-
-    if (document.querySelector('input[name="action"]')) {
-      toggleFields();
-    }
-    
-    const form = document.getElementById('module-launcher-form');
-    const launchBtn = document.getElementById('launch-btn');
-    const notificationZone = document.getElementById('notification-zone');
-
-    if (form) {
-      form.addEventListener('submit', function(event) {
-        event.preventDefault();
-        launchBtn.disabled = true;
-        
-        notificationZone.innerHTML = '';
-        notificationZone.classList.remove('hidden');
-        
-        const loadingHtml = `
-          <div class="bg-translucent p-6 rounded-2xl shadow-lg text-center">
-            <div class="inline-flex items-center">
-              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-[var(--tsar-accent)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              <span>Exécution en cours...</span>
-            </div>
-          </div>`;
-        notificationZone.innerHTML = loadingHtml;
-
-        const formData = new FormData(form);
-        // CORRECTION ICI : Utiliser getAttribute('action')
-        fetch(form.getAttribute('action'), {
-          method: 'POST',
-          body: formData,
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.job_id) {
-            pollJobStatus(data.job_id);
-          } else {
-            showError(data.error || 'Erreur lors du lancement de la tâche.');
-          }
-        })
-        .catch(error => {
-          console.error('Erreur de soumission:', error);
-          showError('Erreur de soumission.');
+  <script>
+    // --- Logique pour le sélecteur de cible personnalisé ---
+    if (typeof window.initTargetSelector !== 'function') {
+      window.initTargetSelector = function(selectorId) {
+        const selector = document.getElementById(selectorId);
+        if (!selector) return;
+        const input = selector.querySelector('input[type="text"]');
+        const dropdown = selector.querySelector('.target-dropdown');
+        const search = selector.querySelector('.target-dropdown-search');
+        const items = selector.querySelectorAll('.target-dropdown-item');
+        input.addEventListener('focus', () => dropdown.classList.remove('hidden'));
+        document.addEventListener('click', (e) => {
+          if (!selector.contains(e.target)) dropdown.classList.add('hidden');
         });
-      });
+        items.forEach(item => {
+          item.addEventListener('click', () => {
+            input.value = item.dataset.value;
+            dropdown.classList.add('hidden');
+          });
+        });
+        search.addEventListener('input', () => {
+          const filter = search.value.toLowerCase();
+          items.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            item.style.display = text.includes(filter) ? '' : 'none';
+          });
+        });
+      }
     }
-
-    function pollJobStatus(jobId) {
-      const interval = setInterval(() => {
-        fetch(`/job/status/${jobId}`)
+    // --- Logique pour le formulaire VPN ---
+    function toggleFields() {
+      const selectedAction = document.querySelector('input[name="action"]:checked').value;
+      const ipContainer = document.getElementById('public-ip-container');
+      const targetContainer = document.getElementById('target-container-vpn');
+      ipContainer.style.display = 'none';
+      targetContainer.style.display = 'none';
+      if (selectedAction === 'generate_config') {
+        ipContainer.style.display = 'block';
+      } else if (selectedAction === 'scan_network' || selectedAction === 'scan_iot_vulns') {
+        targetContainer.style.display = 'block';
+      }
+    }
+    function copyPublicIp() {
+      const detectedIp = document.getElementById('detected-public-ip').textContent;
+      const ipInput = document.getElementById('public_ip');
+      if (detectedIp && ipInput) {
+        ipInput.value = detectedIp;
+      }
+    }
+    // --- Initialisation et Polling ---
+    document.addEventListener('DOMContentLoaded', function() {
+      window.initTargetSelector('target-selector-main');
+      window.initTargetSelector('target-selector-vpn');
+      if (document.querySelector('input[name="action"]')) {
+        toggleFields();
+      }
+      const form = document.getElementById('module-launcher-form');
+      const launchBtn = document.getElementById('launch-btn');
+      const notificationZone = document.getElementById('notification-zone');
+      if (form) {
+        form.addEventListener('submit', function(event) {
+          event.preventDefault();
+          launchBtn.disabled = true;
+          notificationZone.innerHTML = '';
+          notificationZone.classList.remove('hidden');
+          const loadingHtml = `
+            <div class="bg-translucent p-6 rounded-2xl shadow-lg text-center">
+              <div class="inline-flex items-center">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-[var(--tsar-accent)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <span>Exécution en cours...</span>
+              </div>
+            </div>`;
+          notificationZone.innerHTML = loadingHtml;
+          const formData = new FormData(form);
+          fetch(form.getAttribute('action'), {
+            method: 'POST',
+            body: formData,
+          })
           .then(response => response.json())
           .then(data => {
-            if (data.state === 'SUCCESS') {
-              clearInterval(interval);
-              handleSuccess(data.result);
-            } else if (data.state === 'FAILURE') {
-              clearInterval(interval);
-              showError(data.error || 'Erreur lors de l\'exécution de la tâche.');
+            if (data.job_id) {
+              pollJobStatus(data.job_id);
+            } else {
+              showError(data.error || 'Erreur lors du lancement de la tâche.');
             }
           })
           .catch(error => {
-            clearInterval(interval);
-            showError('Erreur de communication avec le serveur.');
+            console.error('Erreur de soumission:', error);
+            showError('Erreur de soumission.');
           });
-      }, 3000);
-    }
-
-    function handleSuccess(result) {
+        });
+      }
+      function pollJobStatus(jobId) {
+        const interval = setInterval(() => {
+          fetch(`/job/status/${jobId}`)
+            .then(response => response.json())
+            .then(data => {
+              if (data.state === 'SUCCESS') {
+                clearInterval(interval);
+                handleSuccess(data.result);
+              } else if (data.state === 'FAILURE') {
+                clearInterval(interval);
+                showError(data.error || 'Erreur lors de l\'exécution de la tâche.');
+              }
+            })
+            .catch(error => {
+              clearInterval(interval);
+              showError('Erreur de communication avec le serveur.');
+            });
+        }, 3000);
+      }
+      function handleSuccess(result) {
+          launchBtn.disabled = false;
+          let successHtml = '';
+          if (result.one_liner) {
+              successHtml = `
+                  <div class="bg-translucent p-6 rounded-2xl shadow-lg text-left">
+                      <h3 class="text-lg font-semibold text-green-400 mb-2">Configuration Générée !</h3>
+                      <p class="text-gray-300 mb-4">Exécutez la commande suivante sur votre machine "implant" pour établir la connexion :</p>
+                      <pre class="bg-[#111] p-4 rounded-lg text-white whitespace-pre-wrap break-all text-sm">${result.one_liner}</pre>
+                      <p class="text-xs text-gray-500 mt-4">Note : Ce lien de configuration est à usage unique et expirera dans 5 minutes.</p>
+                  </div>`;
+          } else if (result.report_id) {
+              successHtml = `
+                  <div class="bg-translucent p-6 rounded-2xl shadow-lg text-center">
+                      <p class="text-green-400">Tâche terminée avec succès !</p>
+                      <p class="text-gray-300">Redirection vers la page des rapports...</p>
+                  </div>`;
+              setTimeout(() => {
+                  window.location.href = "{{ url_for('routes.reports') }}";
+              }, 2000);
+          } else if (result.error) {
+              showError(result.error);
+              return;
+          } else {
+              successHtml = `<div class="bg-translucent p-6 rounded-2xl shadow-lg text-center text-green-400">Opération terminée avec succès.</div>`;
+          }
+          notificationZone.innerHTML = successHtml;
+      }
+      function showError(message) {
         launchBtn.disabled = false;
-        let successHtml = '';
-
-        if (result.one_liner) {
-            successHtml = `
-                <div class="bg-translucent p-6 rounded-2xl shadow-lg text-left">
-                    <h3 class="text-lg font-semibold text-green-400 mb-2">Configuration Générée !</h3>
-                    <p class="text-gray-300 mb-4">Exécutez la commande suivante sur votre machine "implant" pour établir la connexion :</p>
-                    <pre class="bg-[#111] p-4 rounded-lg text-white whitespace-pre-wrap break-all text-sm">${result.one_liner}</pre>
-                    <p class="text-xs text-gray-500 mt-4">Note : Ce lien de configuration est à usage unique et expirera dans 5 minutes.</p>
-                </div>`;
-        } else if (result.report_id) {
-            successHtml = `
-                <div class="bg-translucent p-6 rounded-2xl shadow-lg text-center">
-                    <p class="text-green-400">Tâche terminée avec succès !</p>
-                    <p class="text-gray-300">Redirection vers la page des rapports...</p>
-                </div>`;
-            setTimeout(() => {
-                window.location.href = "{{ url_for('routes.reports') }}";
-            }, 2000);
-        } else if (result.error) {
-            showError(result.error);
-            return;
-        } else {
-            successHtml = `<div class="bg-translucent p-6 rounded-2xl shadow-lg text-center text-green-400">Opération terminée avec succès.</div>`;
-        }
-        notificationZone.innerHTML = successHtml;
-    }
-
-    function showError(message) {
-      launchBtn.disabled = false;
-      const errorHtml = `<div class="bg-red-900/30 p-6 rounded-2xl shadow-lg text-center text-red-400">${message}</div>`;
-      notificationZone.innerHTML = errorHtml;
-    }
-  });
-</script>
+        const errorHtml = `<div class="bg-red-900/30 p-6 rounded-2xl shadow-lg text-center text-red-400">${message}</div>`;
+        notificationZone.innerHTML = errorHtml;
+      }
+    });
+  </script>
+</div>
 {% endblock %}

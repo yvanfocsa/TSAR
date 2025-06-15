@@ -172,11 +172,11 @@ def modules_home():
     cats = get_categories()
     category_order = [
         "Scans Complets",
-        "OSINT",
-        "Web",
-        "Wordpress",
-        "Active Directory",
         "Scan Réseau",
+        "Web",
+        "Active Directory",
+        "Wordpress",
+        "OSINT",
     ]
     sorted_cats = dict(
         sorted(

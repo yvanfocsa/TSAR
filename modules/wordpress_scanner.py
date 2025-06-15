@@ -1,6 +1,6 @@
 # modules/wordpress_scanner.py
 MODULE = {
-    "name": "WordPress - WPProbe",
+    "name": "WPProbe",
     "description": "Scanner WordPress rapide et discret via l'API REST.",
     "category": "Wordpress",  # Catégorie mise à jour
     "schema": [

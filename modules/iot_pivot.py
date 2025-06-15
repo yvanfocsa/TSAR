@@ -6,33 +6,39 @@ import shlex
 MODULE = {
     "name": "IoT - Pivot VPN",
     "description": "Gère le tunnel VPN et lance des audits sur le réseau distant pour les appareils IoT.",
-    "category": "IoT & Pivot",
+    "category": "Scan Réseau", # Catégorie mise à jour
     "schema": [
+        # Le schéma est maintenant groupé pour la cohérence
         {
-            "name": "action",
-            "type": "select",
-            "choices": [
-                "generate_config",
-                "start_vpn",
-                "stop_vpn",
-                "scan_network",
-                "scan_iot_vulns",
-            ],
-            "default": "generate_config",
-            "required": True,
-        },
-        {
-            "name": "public_ip",
-            "type": "string",
-            "placeholder": "Votre IP publique (ou nom de domaine)",
-            "required": False,
-        },
-        {
-            "name": "target",
-            "type": "string",
-            "placeholder": "Ex: 192.168.1.0/24 ou 192.168.1.50",
-            "required": False,
-        },
+            "group_name": "Actions VPN & Scan",
+            "fields": [
+                {
+                    "name": "action",
+                    "type": "select",
+                    "choices": [
+                        "generate_config",
+                        "start_vpn",
+                        "stop_vpn",
+                        "scan_network",
+                        "scan_iot_vulns",
+                    ],
+                    "default": "generate_config",
+                    "required": True,
+                },
+                {
+                    "name": "public_ip",
+                    "type": "string",
+                    "placeholder": "Votre IP publique (ou nom de domaine)",
+                    "required": False,
+                },
+                {
+                    "name": "target",
+                    "type": "string",
+                    "placeholder": "Ex: 192.168.1.0/24 ou 192.168.1.50",
+                    "required": False,
+                },
+            ]
+        }
     ],
     "cmd": lambda p: _build_command(p),
 }

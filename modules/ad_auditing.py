@@ -14,7 +14,11 @@ MODULE = {
         }
     ],
     "cmd": lambda p: [
-        "adminer", "--server", p["ldap_server"], "--username", p["username"],
-        "--password", p["password"], "all", "--html",
+        "adminer",
+        "--server", p["ldap_server"],
+        "--username", p["username"],
+        "--password", p["password"],
+        "all", # Lance tous les checks
+        "--html", # Génère un rapport HTML
     ],
 }

@@ -2,12 +2,17 @@
 MODULE = {
     "name": "WordPress - WPProbe",
     "description": "Scanner WordPress rapide et discret via l'API REST.",
-    "category": "Web",
+    "category": "Wordpress",  # Catégorie mise à jour
     "schema": [
         {
             "group_name": "Paramètres du Scan",
             "fields": [
-                {"name": "url", "type": "string", "placeholder": "https://site-wordpress.com", "required": True},
+                {
+                    "name": "url",
+                    "type": "string",
+                    "placeholder": "https://site-wordpress.com",
+                    "required": True
+                },
             ]
         }
     ],

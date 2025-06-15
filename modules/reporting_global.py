@@ -25,9 +25,11 @@ def build_parallel_cmd(params: dict, module_map: dict) -> list[str]:
             continue
 
         sub_mod = module_map[sec]
+        # On prépare les paramètres pour chaque sous-module.
+        # La même "target" du formulaire sera utilisée pour les deux types de scan.
         sub_params = {
             "target": params.get("target", ""),
-            "github_target": params.get("target", ""), # On utilise la même cible pour les deux
+            "github_target": params.get("target", ""),
         }
 
         cmd_list = sub_mod["cmd"](sub_params)
@@ -52,7 +54,7 @@ MODULE = {
     "name": "7. Reporting",
     "description": "Génère un rapport PDF modulable combinant plusieurs scans OSINT.",
     "category": "Reporting", # Catégorie non affichée mais logique
-    "hidden": False,
+    "hidden": True,
     "hidden_from_list": True,  # Correct : ne pas afficher dans la liste des modules
     "schema": [
         {

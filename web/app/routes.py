@@ -170,8 +170,22 @@ def index():
 @login_required
 def modules_home():
     cats = get_categories()
-    ptes_order = ["PTES - Phase 2", "PTES - Phase 4", "PTES - Phase 5", "PTES - Phase 6", "Active Directory", "Web", "OSINT"]
-    sorted_cats = dict(sorted(cats.items(), key=lambda item: ptes_order.index(item[0]) if item[0] in ptes_order else len(ptes_order)))
+    category_order = [
+        "Scans Complets",
+        "OSINT",
+        "Web",
+        "Wordpress",
+        "Active Directory",
+        "Scan Réseau",
+    ]
+    sorted_cats = dict(
+        sorted(
+            cats.items(),
+            key=lambda item: category_order.index(item[0])
+            if item[0] in category_order
+            else len(category_order),
+        )
+    )
     return render_template("modules.html", cats=sorted_cats)
 
 

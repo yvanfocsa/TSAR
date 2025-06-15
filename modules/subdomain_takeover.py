@@ -3,18 +3,27 @@ import shlex
 
 MODULE = {
     "name": "Subdomain Takeover Scan",
-    "description": "Détecte les sous-domaines vulnérables à une prise de contrôle (takeover).",
-    "category": "Recon",
+    "description": "Détecte les sous-domaines vulnérables à une prise de contrôle (takeover) en vérifiant les enregistrements CNAME pointant vers des services tiers expirés.",
+    "category": "Web",  # Catégorie mise à jour
     "schema": [
         {
             "group_name": "Paramètres du Scan",
             "fields": [
-                {"name": "target", "type": "string", "placeholder": "domaine.com", "required": True},
+                {
+                    "name": "target",
+                    "type": "string",
+                    "placeholder": "domaine.com",
+                    "required": True,
+                },
             ]
         }
     ],
     "cmd": lambda p: [
-        "bash", "-c",
+        "bash",
+        "-c",
+        # La commande enchaîne subfinder pour trouver les sous-domaines,
+        # puis les envoie à nuclei qui utilise uniquement ses templates
+        # spécialisés dans la détection de takeovers.
         (
             f"echo '[+] Recherche des sous-domaines pour {shlex.quote(p['target'])}...'; "
             f"subfinder -d {shlex.quote(p['target'])} -silent | "

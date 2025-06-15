@@ -35,18 +35,23 @@ def _build_gitleaks_command(p: dict) -> list[str]:
     command = f"""
     echo '[+] Recherche des dépôts publics pour "{target}"...'
     REPOS=$(curl -s "https://api.github.com/users/{target}/repos?per_page=100&sort=pushed" | jq -r '.[].clone_url' | head -n {repo_limit})
+    
     if [ -z "$REPOS" ]; then
         echo '[!] Aucun dépôt public trouvé pour "{target}".'
         exit 0
     fi
+    
     COUNT=$(echo "$REPOS" | wc -l)
     echo "[+] $COUNT dépôts trouvés. Lancement du scan de secrets avec Gitleaks..."
     echo "======================================================================"
+    
     for repo_url in $REPOS; do
         echo "\\n[*] Scan du dépôt : $repo_url"
         gitleaks detect --source "$repo_url" --no-banner --report-format json --verbose || true
     done
+    
     echo "======================================================================"
     echo "[+] Scan terminé."
     """
+    
     return ["bash", "-c", command]

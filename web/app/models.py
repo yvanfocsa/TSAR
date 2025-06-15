@@ -3,15 +3,52 @@
 """
 Modèles SQLAlchemy pour TSAR :
 
-* **Report** : PDF chiffré généré après l'exécution d'un module.
-* **ScanLog** : trace légère de chaque exécution "live" (terminal),
-  affichée dans le tableau « Historique » du dashboard.
-* **UserProfile** : profil utilisateur personnalisé (photo, nom).
-* **ScheduledTask** : tâches planifiées pour exécution automatique.
+* **Project**: Conteneur pour une mission de pentest (cible, rapports, fichiers).
+* **ProjectFile**: Fichiers divers uploadés pour un projet.
+* **Report**: PDF chiffré généré après l'exécution d'un module.
+* **ScanLog**: Trace légère de chaque exécution "live" (terminal).
+* **UserProfile**: Profil utilisateur personnalisé (photo, nom).
+* **ScheduledTask**: Tâches planifiées pour exécution automatique.
 """
 
 from datetime import datetime, time, timedelta
 from . import db
+
+
+# ───────────────────────────── Project ─────────────────────────────
+class Project(db.Model):
+    __tablename__ = "projects"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_sub = db.Column(db.String(128), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<Project #{self.id} '{self.name}'>"
+
+
+# ─────────────────────────── ProjectFile ───────────────────────────
+class ProjectFile(db.Model):
+    __tablename__ = "project_files"
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(
+        db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    user_sub = db.Column(db.String(128), nullable=False)
+    filename = db.Column(db.Text, nullable=False)
+    file_data = db.Column(db.LargeBinary, nullable=False)
+    mime_type = db.Column(db.String(100), nullable=True)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    project = db.relationship(
+        "Project", backref=db.backref("files", lazy=True, cascade="all, delete-orphan")
+    )
+
+    def __repr__(self) -> str:
+        return f"<ProjectFile #{self.id} '{self.filename}'>"
 
 
 # ───────────────────────────── Report ──────────────────────────────
@@ -19,10 +56,13 @@ class Report(db.Model):
     __tablename__ = "reports"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_sub = db.Column(db.String(128), nullable=False)  # sub Auth0
-    filename = db.Column(db.Text, nullable=False)  # nom du PDF
-    pdf_data = db.Column(db.LargeBinary, nullable=False)  # PDF chiffré
+    user_sub = db.Column(db.String(128), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+    filename = db.Column(db.Text, nullable=False)
+    pdf_data = db.Column(db.LargeBinary, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    project = db.relationship("Project", backref=db.backref("reports", lazy=True))
 
     def __repr__(self) -> str:
         return f"<Report #{self.id} {self.filename}>"
@@ -33,11 +73,14 @@ class ScanLog(db.Model):
     __tablename__ = "scan_logs"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_sub = db.Column(db.String(128), nullable=False)  # sub Auth0
-    module = db.Column(db.String(64), nullable=False)  # ex. "nmap"
-    target = db.Column(db.Text, nullable=True)  # cible scannée
-    mode = db.Column(db.String(16), nullable=False)  # quick / full / …
+    user_sub = db.Column(db.String(128), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+    module = db.Column(db.String(64), nullable=False)
+    target = db.Column(db.Text, nullable=True)
+    mode = db.Column(db.String(16), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    project = db.relationship("Project", backref=db.backref("scan_logs", lazy=True))
 
     def __repr__(self) -> str:
         return (
@@ -51,26 +94,16 @@ class UserProfile(db.Model):
     __tablename__ = "user_profiles"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_sub = db.Column(
-        db.String(128), unique=True, nullable=False
-    )  # sub Auth0
-    display_name = db.Column(
-        db.String(100), nullable=True
-    )  # nom personnalisé
-    avatar_data = db.Column(
-        db.LargeBinary, nullable=True
-    )  # photo en binaire
-    avatar_mime = db.Column(
-        db.String(50), nullable=True
-    )  # type MIME (image/jpeg, etc.)
+    user_sub = db.Column(db.String(128), unique=True, nullable=False)
+    display_name = db.Column(db.String(100), nullable=True)
+    avatar_data = db.Column(db.LargeBinary, nullable=True)
+    avatar_mime = db.Column(db.String(50), nullable=True)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<UserProfile {self.user_sub} '{self.display_name or 'No name'}'>"
-        )
+        return f"<UserProfile {self.user_sub} '{self.display_name or 'No name'}'>"
 
 
 # ───────────────────────────── ScheduledTask ───────────────────────
@@ -78,31 +111,23 @@ class ScheduledTask(db.Model):
     __tablename__ = "scheduled_tasks"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_sub = db.Column(db.String(128), nullable=False)  # sub Auth0
-    name = db.Column(db.String(100), nullable=False)  # nom de la tâche
-    module_name = db.Column(
-        db.String(64), nullable=False
-    )  # module à exécuter
-    target = db.Column(db.Text, nullable=True)  # cible
-    mode = db.Column(db.String(16), nullable=False)  # quick/full
-    schedule_type = db.Column(
-        db.String(20), nullable=False
-    )  # daily, weekly, monthly
-    schedule_time = db.Column(db.Time, nullable=False)  # heure d'exécution
-    schedule_day = db.Column(
-        db.Integer, nullable=True
-    )  # jour du mois (1-31) ou jour semaine (0-6)
-    is_active = db.Column(db.Boolean, default=True)  # activé/désactivé
-    last_run = db.Column(db.DateTime, nullable=True)  # dernière exécution
-    next_run = db.Column(db.DateTime, nullable=True)  # prochaine exécution
+    user_sub = db.Column(db.String(128), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    module_name = db.Column(db.String(64), nullable=False)
+    target = db.Column(db.Text, nullable=True)
+    mode = db.Column(db.String(16), nullable=False)
+    schedule_type = db.Column(db.String(20), nullable=False)
+    schedule_time = db.Column(db.Time, nullable=False)
+    schedule_day = db.Column(db.Integer, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    last_run = db.Column(db.DateTime, nullable=True)
+    next_run = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self) -> str:
         return f"<ScheduledTask #{self.id} '{self.name}' {self.schedule_type}>"
 
-    def calculate_next_run(
-        self, from_date: datetime | None = None
-    ) -> datetime:
+    def calculate_next_run(self, from_date: datetime | None = None) -> datetime:
         """
         Calcule la prochaine date d'exécution de la tâche en se basant
         sur sa planification.
@@ -125,23 +150,14 @@ class ScheduledTask(db.Model):
 
         elif self.schedule_type == "monthly":
             target_day = self.schedule_day or 1
-            # Si la date/heure est déjà passée ce mois-ci, viser le mois prochain
             if run_date.day > target_day or (
-                run_date.day == target_day
-                and now.time() >= self.schedule_time
+                run_date.day == target_day and now.time() >= self.schedule_time
             ):
-                run_date = (run_date.replace(day=1) + timedelta(days=32)).replace(
-                    day=1
-                )
-
-            # Essayer de définir le jour, et gérer les mois trop courts
+                run_date = (run_date.replace(day=1) + timedelta(days=32)).replace(day=1)
             try:
                 run_date = run_date.replace(day=target_day)
             except ValueError:
-                # Le jour n'existe pas (ex: 31 Février), prendre le dernier jour du mois
-                next_month = (run_date.replace(day=1) + timedelta(days=32)).replace(
-                    day=1
-                )
+                next_month = (run_date.replace(day=1) + timedelta(days=32)).replace(day=1)
                 run_date = next_month - timedelta(days=1)
 
         return datetime.combine(run_date, self.schedule_time)

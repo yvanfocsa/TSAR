@@ -12,12 +12,8 @@
 
   <!-- Styles & Assets -->
   <link href="{{ url_for('static', filename='css/tsar.css') }}" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-  <!-- NOUVEAU : Ajout de Choices.js pour le sélecteur d'IP -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
   <!-- Vanta Topology Animated Background -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
@@ -37,9 +33,12 @@
       <!-- Haut : logo -->
       <div class="pt-4 pb-2 flex flex-col items-center space-y-1">
         <a href="{{ url_for('routes.index') }}">
+          {# ======================= CORRECTION ICI ======================= #}
+          {# On remplace w-24 h-24 par w-40 h-40 et on ajoute les effets de survol #}
           <img src="{{ url_for('static', filename='logo.png') }}"
                alt="Logo TSAR"
-               class="logo-xl rounded-full">
+               class="w-40 h-40 rounded-full transition-transform duration-300 ease-in-out hover:scale-105 hover:rotate-3">
+          {# ===================== FIN DE LA CORRECTION ===================== #}
         </a>
       </div>
 
@@ -52,6 +51,10 @@
         <a href="{{ url_for('routes.modules_home') }}"
            class="block px-4 py-2 rounded-lg {{ 'bg-[var(--tsar-accent)] text-black' if '/modules' in request.path else 'hover:bg-[#1d2530]' }}">
           Modules
+        </a>
+        <a href="{{ url_for('routes.projects_list') }}"
+           class="block px-4 py-2 rounded-lg {{ 'bg-[var(--tsar-accent)] text-black' if '/project' in request.path else 'hover:bg-[#1d2530]' }}">
+          Projets
         </a>
         <a href="{{ url_for('routes.reports') }}"
            class="block px-4 py-2 rounded-lg {{ 'bg-[var(--tsar-accent)] text-black' if '/reports' in request.path else 'hover:bg-[#1d2530]' }}">

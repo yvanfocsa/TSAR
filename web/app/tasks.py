@@ -33,19 +33,14 @@ def _generate_vpn_config(public_ip: str) -> tuple[str, str]:
     """Génère les configurations serveur et client pour WireGuard."""
     client = docker.from_env()
     container = client.containers.get(os.getenv("TOOLBOX_CONTAINER", "toolbox"))
-
     _, server_priv_key_b = container.exec_run("wg genkey")
     server_priv_key = server_priv_key_b.decode().strip()
-    
     _, server_pub_key_b = container.exec_run(f"echo '{server_priv_key}' | wg pubkey")
     server_pub_key = server_pub_key_b.decode().strip()
-    
     _, client_priv_key_b = container.exec_run("wg genkey")
     client_priv_key = client_priv_key_b.decode().strip()
-
     _, client_pub_key_b = container.exec_run(f"echo '{client_priv_key}' | wg pubkey")
     client_pub_key = client_pub_key_b.decode().strip()
-
     server_conf = f"""[Interface]
 Address = 10.0.0.1/24
 ListenPort = 51820
@@ -72,9 +67,12 @@ PersistentKeepalive = 25
 
 @celery.task(name="tsar.run_job")
 def run_job(module_name: str, params: dict, user_sub: str) -> dict:
-    """Exécute un module. Gère le cas spécial du VPN."""
+    """
+    Exécute un module.
+    Cherche ou crée automatiquement un projet basé sur la cible du scan.
+    """
     from . import create_app, db
-    from .models import Report
+    from .models import Project, Report, ScanLog
     from .pdf import generate_report
     from .pdf_crypto import encrypt
 
@@ -87,41 +85,47 @@ def run_job(module_name: str, params: dict, user_sub: str) -> dict:
             logging.error(f"FATAL: Module '{module_name}' introuvable.")
             return {"error": f"Module '{module_name}' introuvable."}
 
-        # --- CAS SPÉCIAL : Automatisation de la génération de config VPN ---
         if module_name == "IoT - Pivot VPN" and params.get("action") == "generate_config":
             try:
                 public_ip = params.get("public_ip", "VOTRE_IP_PUBLIQUE")
                 if not public_ip or public_ip == "VOTRE_IP_PUBLIQUE":
                     return {"error": "L'IP publique est requise pour générer la configuration."}
-
                 server_conf, client_conf = _generate_vpn_config(public_ip)
-                
                 client = docker.from_env()
                 container = client.containers.get(os.getenv("TOOLBOX_CONTAINER", "toolbox"))
                 container.exec_run(f"bash -c 'echo \"{server_conf}\" > /etc/wireguard/wg0.conf && chmod 600 /etc/wireguard/wg0.conf'")
-
                 redis_client = Redis.from_url(app.config["CELERY_BROKER_URL"])
                 token = str(uuid.uuid4())
                 redis_key = f"vpn_config:{token}"
                 redis_client.set(redis_key, client_conf, ex=300)
-
                 base_url = app.config.get("AUTH0_CALLBACK_URL", "http://localhost:5373").rsplit('/', 1)[0]
                 config_url = f"{base_url}/vpn/config/{token}"
-                
                 one_liner = (
                     f"curl -sSL {config_url} | sudo tee /etc/wireguard/wg0.conf > /dev/null && "
                     "sudo chmod 600 /etc/wireguard/wg0.conf && "
                     "sudo wg-quick up wg0"
                 )
-                
                 logging.info(f"Config VPN générée. Token: {token}")
                 return {"one_liner": one_liner}
-
             except Exception as e:
                 logging.error(f"Erreur de génération VPN: {e}", exc_info=True)
                 return {"error": str(e)}
 
-        # --- Exécution normale pour tous les autres modules ---
+        project = None
+        target_name = params.get('target') or params.get('url') or params.get('github_target') or params.get('username')
+
+        if target_name:
+            project = Project.query.filter_by(name=target_name, user_sub=user_sub).first()
+            if not project:
+                logging.info(f"Projet '{target_name}' non trouvé. Création d'un nouveau projet.")
+                project = Project(
+                    name=target_name,
+                    user_sub=user_sub,
+                    description=f"Projet généré automatiquement pour la cible : {target_name}"
+                )
+                db.session.add(project)
+                db.session.flush()
+
         cmd = mod["cmd"](params)
         container_name = os.getenv("TOOLBOX_CONTAINER", "toolbox")
         try:
@@ -135,25 +139,30 @@ def run_job(module_name: str, params: dict, user_sub: str) -> dict:
             output = f"ERREUR : {exc!s}"
 
         try:
-            # CORRECTION : Utiliser l'heure locale du conteneur
             now = datetime.datetime.now()
             pdf_bytes = generate_report(
                 "stdout_report.html",
-                {
-                    "module": mod,
-                    "params": params,
-                    "output": output,
-                    "date": now,
-                },
+                {"module": mod, "params": params, "output": output, "date": now},
             )
             cipher = encrypt(pdf_bytes)
-            # CORRECTION : Utiliser la même variable 'now' pour le nom du fichier
             pdf_name = f"{module_name.replace(' ', '_')}_{now:%Y%m%d%H%M}.pdf"
             report = Report(user_sub=user_sub, filename=pdf_name, pdf_data=cipher)
+
+            if project:
+                report.project_id = project.id
+                log_entry = ScanLog(
+                    user_sub=user_sub,
+                    project_id=project.id,
+                    module=module_name,
+                    target=target_name,
+                    mode=params.get("mode", "N/A"),
+                )
+                db.session.add(log_entry)
+
             db.session.add(report)
             db.session.commit()
             logging.info(f"Rapport #{report.id} ('{pdf_name}') sauvegardé.")
-            return {"report_id": report.id}
+            return {"report_id": report.id, "project_id": project.id if project else None}
         except Exception as e:
             logging.error(f"Erreur PDF: {e}", exc_info=True)
             db.session.rollback()
@@ -165,7 +174,6 @@ def check_scheduled_tasks():
     """Vérifie et exécute les tâches planifiées dues."""
     from . import create_app, db
     from .models import ScheduledTask
-    from .routes import _calculate_next_run
 
     app = create_app(register_blueprints=False, register_context_processors=False)
     with app.app_context():
@@ -182,7 +190,10 @@ def check_scheduled_tasks():
             mod = next((m for m in MODULES if m["name"] == task.module_name), None)
             params = {"mode": task.mode}
             if mod and mod.get("schema"):
-                main_param_name = mod["schema"][0].get("name", "target")
+                if mod["schema"][0].get("group_name"):
+                    main_param_name = mod["schema"][0]["fields"][0].get("name", "target")
+                else:
+                    main_param_name = mod["schema"][0].get("name", "target")
                 params[main_param_name] = task.target
             else:
                 params["target"] = task.target
@@ -190,64 +201,52 @@ def check_scheduled_tasks():
             run_job.delay(task.module_name, params, task.user_sub)
 
             task.last_run = now
-            task.next_run = _calculate_next_run(
-                now, task.schedule_type, task.schedule_time, task.schedule_day
-            )
+            task.next_run = task.calculate_next_run(from_date=now)
             db.session.commit()
             logging.info(f"Tâche #{task.id} reprogrammée pour {task.next_run}.")
 
     return len(due_tasks)
 
+
 def _decode_cvss_vector(vector_string: str) -> list[dict]:
     """Traduit et décode un vecteur CVSS v3.1 en une liste lisible."""
     if not vector_string or not vector_string.startswith("CVSS:3.1"):
         return []
-
     translations = {
         "AV": "Vecteur d'Attaque", "AC": "Complexité de l'Attaque", "PR": "Privilèges Requis",
         "UI": "Interaction Utilisateur", "S": "Scope", "C": "Confidentialité",
-        "I": "Intégrité", "A": "Disponibilité",
-        "N": "Réseau", "A": "Adjacent", "L": "Local", "P": "Physique",
-        "H": "Haute", "L": "Faible",
-        "N": "Aucun", "R": "Requise",
-        "C": "Changé", "U": "Inchangé",
+        "I": "Intégrité", "A": "Disponibilité", "N": "Réseau", "A": "Adjacent",
+        "L": "Local", "P": "Physique", "H": "Haute", "L": "Faible", "N": "Aucun",
+        "R": "Requise", "C": "Changé", "U": "Inchangé",
     }
-    
     decoded = []
-    parts = vector_string.split('/')
+    parts = vector_string.split("/")
     for part in parts[1:]:
-        key, value = part.split(':')
+        key, value = part.split(":")
         metric_fr = translations.get(key, key)
         value_fr = translations.get(value, value)
         decoded.append({"metric": metric_fr, "value": value_fr})
-        
     return decoded
+
 
 @celery.task(name="tsar.run_cve_analysis", acks_late=True, throws=(Exception,))
 def run_cve_analysis(cve_id: str) -> dict:
     """Interroge l'API NVD, décode et traduit les informations d'une CVE."""
     logging.info(f"Début de l'analyse API pour la CVE : {cve_id}")
     api_url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={cve_id}"
-    
     try:
         response = requests.get(api_url, timeout=15)
         response.raise_for_status()
         data = response.json()
-        
         if not data.get("vulnerabilities"):
             raise Exception(f"La CVE '{cve_id}' n'a pas été trouvée dans la base de données NVD.")
-            
         cve_data = data["vulnerabilities"][0]["cve"]
         description = next((d['value'] for d in cve_data.get('descriptions', []) if d['lang'] == 'en'), "Description non disponible.")
-        
         cvss_metrics = cve_data.get("metrics", {})
         cvss_v3_data = cvss_metrics.get("cvssMetricV31", cvss_metrics.get("cvssMetricV30", [{}]))[0].get("cvssData", {})
-        
         weaknesses = cve_data.get("weaknesses", [{}])[0].get("description", [{}])[0].get("value", "N/A")
-        
         severity_map = {"CRITICAL": "CRITIQUE", "HIGH": "ÉLEVÉE", "MEDIUM": "MOYENNE", "LOW": "FAIBLE"}
         severity_fr = severity_map.get(cvss_v3_data.get("baseSeverity"), cvss_v3_data.get("baseSeverity"))
-
         result = {
             "id": cve_data.get("id"),
             "publishedDate": cve_data.get("published"),
@@ -262,10 +261,8 @@ def run_cve_analysis(cve_id: str) -> dict:
             "cwe": weaknesses,
             "url": f"https://nvd.nist.gov/vuln/detail/{cve_data.get('id')}"
         }
-        
         logging.info(f"Analyse API de {cve_id} réussie.")
         return result
-
     except requests.exceptions.RequestException as e:
         logging.error(f"Erreur de communication avec l'API NVD pour {cve_id}: {e}")
         raise Exception("Impossible de contacter le service d'analyse des vulnérabilités (NVD).")
@@ -273,23 +270,22 @@ def run_cve_analysis(cve_id: str) -> dict:
         logging.error(f"Erreur inattendue lors de l'analyse de {cve_id}: {e}", exc_info=True)
         raise
 
+
 def _extract_components_from_report(report_text: str) -> set[str]:
     """Extrait des composants potentiels (produit + version) d'un rapport."""
     pattern = re.compile(r"([a-zA-Z0-9\._-]+)\s+version\s+([\d\.]+[a-z\d\.]*)", re.IGNORECASE)
     pattern_simple = re.compile(r"([a-zA-Z0-9\._-]+)/([\d\.]+[a-z\d\.]*)", re.IGNORECASE)
-    
     found = set()
     for match in pattern.finditer(report_text):
         product = match.group(1).lower().replace("_", " ").replace("-", " ")
         version = match.group(2)
         found.add(f"{product} {version}")
-        
     for match in pattern_simple.finditer(report_text):
         product = match.group(1).lower().replace("_", " ").replace("-", " ")
         version = match.group(2)
         found.add(f"{product} {version}")
-
     return {c for c in found if len(c.split()) > 1 and len(c.split()[1]) > 2}
+
 
 @celery.task(name="tsar.run_inference_analysis", acks_late=True, throws=(Exception,))
 def run_inference_analysis(report_id: int, user_sub: str) -> list[dict]:
@@ -303,30 +299,23 @@ def run_inference_analysis(report_id: int, user_sub: str) -> list[dict]:
     app = create_app(register_blueprints=False, register_context_processors=False)
     with app.app_context():
         logging.info(f"Lancement de l'analyse par API sur le rapport #{report_id}.")
-        
         report = Report.query.get(report_id)
         if not report or report.user_sub != user_sub:
             raise Exception("Rapport non trouvé ou accès non autorisé.")
-
         pdf_bytes = decrypt(report.pdf_data)
         text = extract_text(io.BytesIO(pdf_bytes))
-
         components = _extract_components_from_report(text)
         if not components:
             return []
-
         logging.info(f"{len(components)} composants potentiels détectés: {', '.join(components)}")
-
         all_results = []
         for component in components:
             try:
                 time.sleep(6) 
-                
                 api_url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch={requests.utils.quote(component)}&keywordExactMatch"
                 response = requests.get(api_url, timeout=20)
                 response.raise_for_status()
                 data = response.json()
-
                 if data.get("vulnerabilities"):
                     cves_found = [vuln["cve"]["id"] for vuln in data["vulnerabilities"]]
                     all_results.append({
@@ -337,5 +326,4 @@ def run_inference_analysis(report_id: int, user_sub: str) -> list[dict]:
             except requests.exceptions.RequestException as e:
                 logging.warning(f"Erreur API pour le composant '{component}': {e}")
                 continue
-        
         return all_results

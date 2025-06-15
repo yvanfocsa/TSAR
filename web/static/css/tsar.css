@@ -146,3 +146,13 @@ a.bg-\[var\(--tsar-accent2\)\]:hover {
 .report-card h3 {
   overflow-wrap: break-word;
 }
+
+/* --- Logo dans la sidebar --- */
+.logo-xl {
+  width: 10rem; /* 160px */
+  height: 10rem; /* 160px */
+  transition: transform 0.3s ease-in-out;
+}
+.logo-xl:hover {
+  transform: scale(1.05) rotate(3deg);
+}

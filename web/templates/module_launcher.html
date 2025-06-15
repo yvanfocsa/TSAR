@@ -16,7 +16,7 @@
           method="post"
           class="space-y-6">
 
-      {# --- INTERFACE SPÉCIFIQUE POUR LE MODULE VPN --- #}
+      {# --- CAS SPÉCIAL : INTERFACE POUR LE MODULE VPN --- #}
       {% if mod.name == 'IoT - Pivot VPN' %}
         <div>
           <label class="block text-lg font-semibold text-white mb-4">
@@ -37,7 +37,7 @@
           </div>
         </div>
 
-        <!-- Champs contextuels -->
+        <!-- Champs contextuels pour le VPN -->
         <div class="mt-6 space-y-4 transition-all duration-300" id="contextual-fields">
           <div id="public-ip-container" class="hidden">
             {% if public_ip %}
@@ -65,57 +65,22 @@
 
       {# --- FORMULAIRE UNIVERSEL POUR TOUS LES AUTRES MODULES --- #}
       {% else %}
-        <div class="bg-[#111] p-6 rounded-xl border border-[#333] space-y-4">
-          {# ======================= CORRECTION ICI ======================= #}
-          {# On remet la logique de rendu des champs directement ici #}
-          {% for field in mod.schema %}
-            <div>
-              <label for="{{ field.name }}" class="block text-sm font-medium mb-2 text-gray-200">
-                {{ field.name|replace('_', ' ')|capitalize }}
-              </label>
-              
-              {% if field.type == 'string' %}
-                <input type="text" name="{{ field.name }}" id="{{ field.name }}"
-                       placeholder="{{ field.placeholder or '' }}"
-                       {% if field.required %}required{% endif %}
-                       class="w-full px-4 py-2 bg-[#1e1e1e] border border-[#444] rounded focus:ring-[var(--tsar-accent)]">
-              
-              {% elif field.type == 'select' %}
-                <select name="{{ field.name }}" id="{{ field.name }}"
-                        class="w-full px-4 py-2 bg-[#1e1e1e] border border-[#444] rounded focus:ring-[var(--tsar-accent)]">
-                  {% for choice in field.choices %}
-                    <option value="{{ choice }}" {% if choice == field.default %}selected{% endif %}>
-                      {{ choice|capitalize }}
-                    </option>
-                  {% endfor %}
-                </select>
-              
-              {% elif field.type == 'multiselect' %}
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {% for choice in field.choices %}
-                    <label class="flex items-center p-3 bg-[#1e1e1e] hover:bg-[#2a2a2a] rounded-lg cursor-pointer transition">
-                      <input type="checkbox" name="{{ field.name }}" value="{{ choice }}"
-                             {% if choice in (field.default or []) %}checked{% endif %}
-                             class="h-5 w-5 text-[var(--tsar-accent)] rounded focus:ring-[var(--tsar-accent)]">
-                      <span class="ml-3 text-gray-200 font-medium capitalize">{{ choice }}</span>
-                    </label>
-                  {% endfor %}
-                </div>
-              {% endif %}
-
-              {% if field.description %}
-                <p class="text-xs text-gray-500 mt-2">{{ field.description }}</p>
-              {% endif %}
+        {# Boucle standardisée qui fonctionne pour tous les modules (sauf VPN) #}
+        {% for field_group in mod.schema %}
+          <div class="bg-[#111] p-6 rounded-xl border border-[#333]">
+            <h3 class="text-lg font-semibold text-[var(--tsar-accent)] mb-4">{{ field_group.group_name }}</h3>
+            <div class="space-y-4">
+              {% for field in field_group.fields %}
+                {% include 'partials/_form_field.html' with context %}
+              {% endfor %}
             </div>
-          {% endfor %}
-          {# ===================== FIN DE LA CORRECTION ===================== #}
-        </div>
+          </div>
+        {% endfor %}
       {% endif %}
 
       <!-- Bouton Lancer -->
       <div class="pt-8 flex justify-center">
-        <button type="submit" id="launch-btn"
-                class="flex items-center gap-3 px-10 py-3 bg-[var(--tsar-accent)] text-black font-bold rounded-full shadow-lg hover:bg-[var(--tsar-accent2)] transition disabled:opacity-50">
+        <button type="submit" id="launch-btn" class="flex items-center gap-3 px-10 py-3 bg-[var(--tsar-accent)] text-black font-bold rounded-full shadow-lg hover:bg-[var(--tsar-accent2)] transition disabled:opacity-50">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /></svg>
           Exécuter l'Action
         </button>
@@ -264,11 +229,15 @@
               successHtml = `
                   <div class="bg-translucent p-6 rounded-2xl shadow-lg text-center">
                       <p class="text-green-400">Tâche terminée avec succès !</p>
-                      <p class="text-gray-300">Redirection vers la page des rapports...</p>
+                      <p class="text-gray-300">Redirection vers le projet...</p>
                   </div>`;
               setTimeout(() => {
-                  window.location.href = "{{ url_for('routes.reports') }}";
-              }, 2000);
+                  if (result.project_id) {
+                    window.location.href = `/project/${result.project_id}`;
+                  } else {
+                    window.location.href = "{{ url_for('routes.reports') }}";
+                  }
+              }, 1500);
           } else if (result.error) {
               showError(result.error);
               return;

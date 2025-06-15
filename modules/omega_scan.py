@@ -1,21 +1,16 @@
 # modules/omega_scan.py
 import shlex
 
-# --- On importe TOUS les modules qui serviront de briques de base ---
-from modules.intelligence_gathering import MODULE as mod_intel
-from modules.code_secrets_scanner import MODULE as mod_secrets
+# --- On importe les modules OSINT qui serviront de briques de base ---
+from modules.osint_global import MODULE as mod_osint_pseudo
+from modules.code_secrets_scanner import MODULE as mod_gitleaks
 from modules.subdomain_takeover import MODULE as mod_takeover
-from modules.vulnerability_analysis import MODULE as mod_vuln
-from modules.exploitation import MODULE as mod_exploit
 
 # --- Dictionnaire des modules à exécuter, dans un ordre logique ---
-# Les clés numérotées aident à organiser la sortie du rapport.
 OMEGA_MODULES = {
-    "1_recon_osint": mod_intel,
-    "2_leak_scan": mod_secrets,
+    "1_pseudo_search": mod_osint_pseudo,
+    "2_leak_scan": mod_gitleaks,
     "3_takeover_scan": mod_takeover,
-    "4_vuln_analysis": mod_vuln,
-    "5_exploitation": mod_exploit,
 }
 
 # --- Construction dynamique du schéma pour le formulaire ---
@@ -25,42 +20,37 @@ def _build_omega_schema():
     """
     return [
         {
-            "group_name": "Paramètres de Cible Principale",
+            "group_name": "Paramètres de Cible",
             "fields": [
                 {
                     "name": "target",
                     "type": "string",
-                    "placeholder": "exemple.com ou 1.2.3.4",
+                    "placeholder": "domaine.com (pour Subdomain Takeover)",
                     "required": True,
-                    "description": "Cible principale pour la plupart des scans (Nmap, Nuclei, etc.)."
+                    "description": "Cible principale pour le scan de takeover de sous-domaines."
                 },
                 {
-                    "name": "service",
+                    "name": "username",
                     "type": "string",
-                    "placeholder": "ssh, ftp, http (pour Hydra)",
-                    "required": False,
-                    "description": "Service à cibler pour le bruteforce avec Hydra."
+                    "placeholder": "pseudonyme (pour la recherche de comptes)",
+                    "required": True,
+                    "description": "Le nom d'utilisateur à rechercher sur les réseaux sociaux."
                 },
-            ],
-        },
-        {
-            "group_name": "Paramètres OSINT (Optionnel)",
-            "fields": [
                 {
                     "name": "github_target",
                     "type": "string",
-                    "placeholder": "Nom d'orga/user GitHub (ex: tesla)",
-                    "required": False,
-                    "description": "Si fourni, lance un scan de secrets sur les dépôts publics associés."
+                    "placeholder": "orga/user GitHub (pour Gitleaks)",
+                    "required": True,
+                    "description": "Le nom de l'organisation ou de l'utilisateur sur GitHub pour le scan de secrets."
                 },
-            ]
+            ],
         }
     ]
 
 # --- Définition du module Omega ---
 MODULE = {
-    "name": "Omega Scan",
-    "description": "Lancement d'un audit complet et automatisé sur une cible, combinant toutes les phases du PTES.",
+    "name": "Omega Scan (OSINT)",
+    "description": "Lance un audit OSINT complet et automatisé, combinant la recherche de pseudos, de secrets sur GitHub et de takeovers de sous-domaines.",
     "category": "Scans Complets",
     "schema": _build_omega_schema(),
     "cmd": lambda p: _build_omega_cmd(p),
@@ -78,15 +68,6 @@ def _build_omega_cmd(p: dict) -> list[str]:
         # Préparation des paramètres pour chaque sous-module
         sub_params = p.copy()
         sub_params["mode"] = "full" # Toujours en mode complet pour Omega
-
-        # Gère les cas où un paramètre est manquant pour un sous-module
-        if name == "2_leak_scan" and not p.get("github_target"):
-            print(f"Skipping {name}: github_target not provided.")
-            continue
-        
-        # Gère les alias de paramètres (ex: 'target' pour gitleaks)
-        if name == "2_leak_scan":
-            sub_params["github_target"] = p.get("github_target")
 
         # Construction de la commande pour le sous-module
         cmd_list = sub_mod["cmd"](sub_params)

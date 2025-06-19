@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-12 space-y-16">
+
+  <!-- En-tête -->
+  <div class="text-center">
+    <h1 class="text-5xl font-extrabold text-[var(--tsar-accent)]">
+      Guide d'Utilisation TSAR
+    </h1>
+    <p class="mt-4 text-xl text-gray-300 max-w-3xl mx-auto">
+      Votre plateforme centralisée pour l'automatisation des tests d'intrusion.
+      Ce guide vous aidera à maîtriser ses fonctionnalités clés.
+    </p>
+  </div>
+
+  <!-- Concepts Fondamentaux -->
+  <div>
+    <h2 class="text-3xl font-bold text-center mb-10">Les Concepts Fondamentaux</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Carte Projet -->
+      <div class="bg-translucent p-6 rounded-2xl border border-gray-800">
+        <div class="flex items-center gap-4 mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-[var(--tsar-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+          <h3 class="text-2xl font-semibold text-white">Projets</h3>
+        </div>
+        <p class="text-gray-400">
+          Le projet est le conteneur principal de votre mission. Chaque scan que vous lancez sur une cible (ex: `acme.com`) sera automatiquement rattaché au projet du même nom, centralisant ainsi tous les rapports et documents.
+        </p>
+      </div>
+      <!-- Carte Modules -->
+      <div class="bg-translucent p-6 rounded-2xl border border-gray-800">
+        <div class="flex items-center gap-4 mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-[var(--tsar-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+          <h3 class="text-2xl font-semibold text-white">Modules</h3>
+        </div>
+        <p class="text-gray-400">
+          Les modules sont les outils individuels (Nmap, Gitleaks, Nuclei...). Ils sont organisés par catégorie (OSINT, Scan Réseau, Web...) pour suivre une méthodologie de pentest logique.
+        </p>
+      </div>
+      <!-- Carte Rapports -->
+      <div class="bg-translucent p-6 rounded-2xl border border-gray-800">
+        <div class="flex items-center gap-4 mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-[var(--tsar-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          <h3 class="text-2xl font-semibold text-white">Rapports Chiffrés</h3>
+        </div>
+        <p class="text-gray-400">
+          Chaque scan génère un rapport PDF détaillé. Pour votre sécurité, ces rapports sont chiffrés avec votre clé `PDF_ENC_KEY` avant d'être stockés dans la base de données.
+        </p>
+      </div>
+      <!-- Carte Toolbox -->
+      <div class="bg-translucent p-6 rounded-2xl border border-gray-800">
+        <div class="flex items-center gap-4 mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-[var(--tsar-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+          <h3 class="text-2xl font-semibold text-white">Conteneur Toolbox</h3>
+        </div>
+        <p class="text-gray-400">
+          Tous les outils de pentest sont exécutés dans un conteneur Docker Kali Linux isolé. Cela garantit que votre système hôte reste propre, sécurisé et que les outils disposent de toutes leurs dépendances.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workflow type -->
+  <div>
+    <h2 class="text-3xl font-bold text-center mb-10">Le Déroulement d'un Pentest avec TSAR</h2>
+    <div class="relative">
+      <!-- Ligne verticale de la timeline -->
+      <div class="absolute left-4 top-4 bottom-0 w-0.5 bg-gray-700" aria-hidden="true"></div>
+      
+      <ol class="space-y-12">
+        <!-- Étape 1 -->
+        <li class="relative flex items-start">
+          <div class="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-[var(--tsar-accent)] rounded-full text-black font-bold text-lg z-10">1</div>
+          <div class="ml-6">
+            <h3 class="text-2xl font-semibold text-white">Création du Projet</h3>
+            <p class="mt-2 text-gray-400">
+              Allez dans la section <strong>Projets</strong> et créez un nouveau projet, par exemple `Acme-Corp`. C'est la première étape pour organiser votre mission.
+            </p>
+          </div>
+        </li>
+        
+        <!-- Étape 2 -->
+        <li class="relative flex items-start">
+          <div class="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-[var(--tsar-accent)] rounded-full text-black font-bold text-lg z-10">2</div>
+          <div class="ml-6">
+            <h3 class="text-2xl font-semibold text-white">Phase d'OSINT</h3>
+            <p class="mt-2 text-gray-400">
+              Allez dans <strong>Modules</strong> et choisissez un outil de la catégorie <strong>OSINT</strong>. Par exemple, utilisez `Code Leak Scanner` avec la cible `acme-corp` pour chercher des secrets sur GitHub. Le rapport sera automatiquement ajouté à votre projet.
+            </p>
+          </div>
+        </li>
+
+        <!-- Étape 3 -->
+        <li class="relative flex items-start">
+          <div class="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-[var(--tsar-accent)] rounded-full text-black font-bold text-lg z-10">3</div>
+          <div class="ml-6">
+            <h3 class="text-2xl font-semibold text-white">Scan de Vulnérabilités</h3>
+            <p class="mt-2 text-gray-400">
+              Lancez un scan plus actif. Utilisez le module `Vuln Assessment – Complet` sur le domaine principal de votre cible, `acme.com`. TSAR créera un nouveau projet `acme.com` si celui-ci n'existe pas.
+            </p>
+          </div>
+        </li>
+
+        <!-- Étape 4 -->
+        <li class="relative flex items-start">
+          <div class="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-[var(--tsar-accent)] rounded-full text-black font-bold text-lg z-10">4</div>
+          <div class="ml-6">
+            <h3 class="text-2xl font-semibold text-white">Analyse et Suivi</h3>
+            <p class="mt-2 text-gray-400">
+              Consultez la page de votre projet. Le dashboard vous montre une synthèse des vulnérabilités trouvées. Utilisez la page <strong>Rapports > Comparer</strong> pour voir l'évolution entre deux scans (ex: ports ouverts, failles corrigées).
+            </p>
+          </div>
+        </li>
+
+        <!-- Étape 5 -->
+        <li class="relative flex items-start">
+          <div class="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-[var(--tsar-accent)] rounded-full text-black font-bold text-lg z-10">5</div>
+          <div class="ml-6">
+            <h3 class="text-2xl font-semibold text-white">Automatisation</h3>
+            <p class="mt-2 text-gray-400">
+              Pour surveiller la cible sur le long terme, allez dans <strong>Tâches planifiées</strong>. Créez une tâche hebdomadaire qui relance le module `Subdomain Takeover Scan` sur `acme.com`. Vous serez ainsi alerté de toute nouvelle vulnérabilité.
+            </p>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Fonctionnalités Avancées -->
+  <div>
+    <h2 class="text-3xl font-bold text-center mb-10">Fonctionnalités Avancées</h2>
+    <div class="space-y-6">
+      <div class="bg-translucent p-6 rounded-2xl">
+        <h3 class="text-xl font-semibold text-[var(--tsar-accent)] mb-2">Analyse de CVE</h3>
+        <p class="text-gray-400">
+          Ne vous contentez pas d'un ID de CVE. La page <strong>Analyse CVE</strong> interroge les bases de données publiques (NVD) pour vous donner une description détaillée, le score CVSS, le type de faiblesse (CWE) et un lien direct vers la ressource officielle. Vous pouvez aussi analyser un de vos rapports pour que TSAR extraie les technologies détectées et cherche les CVEs correspondantes.
+        </p>
+      </div>
+      <div class="bg-translucent p-6 rounded-2xl">
+        <h3 class="text-xl font-semibold text-[var(--tsar-accent)] mb-2">Pivot VPN</h3>
+        <p class="text-gray-400">
+          Le module `IoT - Pivot VPN` est un outil puissant pour les tests internes. Il vous permet de générer une configuration WireGuard en un clic. Vous n'avez qu'à exécuter la commande fournie sur une machine "implant" dans le réseau cible pour créer un tunnel sécurisé. Vous pouvez ensuite lancer des scans Nmap depuis TSAR comme si vous étiez directement dans le réseau local de la cible.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Étendre TSAR -->
+  <div>
+    <h2 class="text-3xl font-bold text-center mb-10">Étendre TSAR : Créer Votre Propre Module</h2>
+    <div class="bg-translucent p-8 rounded-2xl">
+      <p class="text-gray-300 mb-4">
+        L'un des plus grands atouts de TSAR est sa modularité. Pour ajouter un nouvel outil, il suffit de créer un fichier Python dans le dossier `modules/` et de définir un dictionnaire `MODULE`.
+      </p>
+      <pre class="bg-[#111] rounded-lg p-4 text-sm"><code class="language-python">
+# modules/mon_outil.py
+import shlex
+
+MODULE = {
+    "name": "Mon Super Outil",
+    "description": "Description de ce que fait l'outil.",
+    "category": "Web",
+    "schema": [
+        {
+            "group_name": "Paramètres",
+            "fields": [
+                {"name": "target", "type": "string", "required": True},
+            ]
+        }
+    ],
+    "cmd": lambda p: [
+        "mon-super-outil-cli",
+        "--target", shlex.quote(p["target"]),
+        "--json-output"
+    ],
+}
+      </code></pre>
+      <p class="mt-4 text-gray-400">
+        Après un redémarrage des conteneurs, votre nouvel outil apparaîtra automatiquement dans l'interface, prêt à être utilisé !
+      </p>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

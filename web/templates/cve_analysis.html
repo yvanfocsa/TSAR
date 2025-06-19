@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-12">
+  <h1 class="text-4xl font-bold text-center text-[var(--tsar-accent)] mb-6">Analyse de Vulnérabilités</h1>
+  <p class="text-center text-gray-400 mb-8">
+    Analysez une CVE par son ID, ou analysez un rapport pour découvrir les vulnérabilités liées aux composants détectés.
+  </p>
+
+  <!-- Onglets de sélection du mode d'analyse -->
+  <div class="mb-4 border-b border-gray-700">
+    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+      <button onclick="switchTab('cve')" id="tab-cve" class="tab-btn border-[var(--tsar-accent)] text-[var(--tsar-accent)] whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+        Analyser par ID de CVE
+      </button>
+      <button onclick="switchTab('component')" id="tab-component" class="tab-btn border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+        Analyser par Composants (Rapport)
+      </button>
+    </nav>
+  </div>
+
+  <!-- Formulaire pour analyser par ID -->
+  <form id="form-cve" method="post" action="{{ url_for('routes.cve_analysis') }}" class="bg-translucent p-8 rounded-2xl shadow-lg flex items-center gap-4">
+    <input type="text" name="cve_id" placeholder="Ex: CVE-2021-44228" required
+           class="flex-1 px-4 py-3 bg-[#111] border border-[#333] rounded-lg text-white focus:ring-2 focus:ring-[var(--tsar-accent)]">
+    <button type="submit" class="px-8 py-3 bg-[var(--tsar-accent)] text-black font-bold rounded-lg hover:bg-[var(--tsar-accent2)] transition">
+      Analyser ID
+    </button>
+  </form>
+
+  <!-- Formulaire pour analyser par composants -->
+  <form id="form-component" method="post" action="{{ url_for('routes.cve_analysis') }}" class="hidden bg-translucent p-8 rounded-2xl shadow-lg flex items-center gap-4">
+    <select name="report_id" required class="flex-1 px-4 py-3 bg-[#111] border border-[#333] rounded-lg text-white focus:ring-2 focus:ring-[var(--tsar-accent)]">
+      <option value="" disabled selected>Sélectionnez un rapport à analyser...</option>
+      {% for report in reports %}
+        <option value="{{ report.id }}">{{ report.filename }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="px-8 py-3 bg-[var(--tsar-accent)] text-black font-bold rounded-lg hover:bg-[var(--tsar-accent2)] transition">
+      Analyser Rapport
+    </button>
+  </form>
+
+  {% if error %}
+    <div class="mt-8 text-center text-red-400 bg-red-900/20 p-4 rounded-lg">{{ error }}</div>
+  {% endif %}
+
+  {% if job_id %}
+  <div id="result-container" class="mt-8" data-job-id="{{ job_id }}">
+    <div id="loading-state" class="text-center bg-translucent p-8 rounded-2xl shadow-lg">
+      <div class="inline-flex items-center">
+        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-[var(--tsar-accent)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <span>Analyse de <strong>{{ analysis_target }}</strong> en cours...</span>
+      </div>
+    </div>
+    <div id="success-state" class="hidden space-y-6"></div>
+    <div id="error-state" class="hidden text-center text-red-400 bg-red-900/20 p-4 rounded-lg"></div>
+  </div>
+  {% endif %}
+
+{# MODIFIÉ : Déplacement des balises {% raw %} et {% endraw %} à l'intérieur du block content #}
+<script>
+{% raw %}
+  function switchTab(tab) {
+    const formCve = document.getElementById('form-cve');
+    const formComponent = document.getElementById('form-component');
+    const tabCve = document.getElementById('tab-cve');
+    const tabComponent = document.getElementById('tab-component');
+
+    if (tab === 'cve') {
+      formCve.classList.remove('hidden');
+      formComponent.classList.add('hidden');
+      tabCve.classList.add('border-[var(--tsar-accent)]', 'text-[var(--tsar-accent)]');
+      tabCve.classList.remove('border-transparent', 'text-gray-400');
+      tabComponent.classList.add('border-transparent', 'text-gray-400');
+      tabComponent.classList.remove('border-[var(--tsar-accent)]', 'text-[var(--tsar-accent)]');
+    } else {
+      formCve.classList.add('hidden');
+      formComponent.classList.remove('hidden');
+      tabComponent.classList.add('border-[var(--tsar-accent)]', 'text-[var(--tsar-accent)]');
+      tabComponent.classList.remove('border-transparent', 'text-gray-400');
+      tabCve.classList.add('border-transparent', 'text-gray-400');
+      tabCve.classList.remove('border-[var(--tsar-accent)]', 'text-[var(--tsar-accent)]');
+    }
+  }
+
+document.addEventListener('DOMContentLoaded', function() {
+  const resultContainer = document.getElementById('result-container');
+  if (!resultContainer) return;
+
+  const jobId = resultContainer.dataset.jobId;
+  const loadingState = document.getElementById('loading-state');
+  const successState = document.getElementById('success-state');
+  const errorState = document.getElementById('error-state');
+
+  function pollStatus() {
+    const interval = setInterval(() => {
+      fetch(`/job/status/${jobId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+          if (data.state === 'SUCCESS') {
+            clearInterval(interval);
+            loadingState.style.display = 'none';
+            displayResults(data.result);
+          } else if (data.state === 'FAILURE') {
+            clearInterval(interval);
+            loadingState.style.display = 'none';
+            errorState.textContent = data.error || 'Une erreur inconnue est survenue.';
+            errorState.style.display = 'block';
+          }
+        })
+        .catch(err => {
+          clearInterval(interval);
+          loadingState.style.display = 'none';
+          errorState.textContent = `Erreur de communication avec le serveur: ${err.message || err}.`;
+          errorState.style.display = 'block';
+          console.error("Polling error:", err);
+        });
+    }, 3000);
+  }
+
+  function displayResults(resultData) {
+    if (Array.isArray(resultData)) {
+      displayComponentResults(resultData);
+    } else {
+      displayCveResult(resultData);
+    }
+  }
+
+  function displayCveResult(result) {
+    if (result.error) {
+      successState.innerHTML = `<div class="bg-red-900/20 p-4 rounded-lg text-red-400"><strong>Erreur pour ${result.id || 'CVE'}:</strong> ${result.error}</div>`;
+      successState.style.display = 'block';
+      return;
+    }
+
+    const severityClass = getSeverityClass(result.severity);
+    const cweContent = result.cwe ? `<div class="bg-[#111] p-4 rounded-lg"><h4 class="font-semibold text-gray-300 mb-2">Type de Faiblesse (CWE)</h4><p class="text-gray-400">${result.cwe}</p></div>` : '';
+    const score = result.score || 'N/A';
+    const severity = result.severity || 'N/A';
+    const description = result.description || 'Description non disponible.';
+
+    const finalHtml = `
+      <div class="bg-translucent p-8 rounded-2xl shadow-lg animate-fade-in">
+        <div class="flex justify-between items-start mb-4">
+          <h2 class="text-3xl font-bold text-[var(--tsar-accent)]">${result.id}</h2>
+          <div class="text-right"><span class="px-4 py-2 rounded-full text-white font-bold text-sm ${severityClass}">${severity} ${score}</span></div>
+        </div>
+        <div class="space-y-6">
+          <div><h3 class="font-semibold text-gray-300 mb-1">Description</h3><p class="text-gray-400">${description}</p></div>
+          ${cweContent}
+          <div class="pt-4 border-t border-gray-700"><a href="https://nvd.nist.gov/vuln/detail/${result.id}" target="_blank" class="text-[var(--tsar-accent)] hover:underline font-semibold">Voir les détails sur NVD.NIST.GOV &rarr;</a></div>
+        </div>
+      </div>
+    `;
+    successState.innerHTML = finalHtml;
+    successState.style.display = 'block';
+  }
+
+  function displayComponentResults(results) {
+    if (results.length === 0) {
+        successState.innerHTML = `<div class="bg-translucent p-8 rounded-2xl text-center text-gray-400">Aucun composant exploitable n'a été identifié ou aucune CVE n'a été trouvée pour les composants détectés.</div>`;
+        successState.style.display = 'block';
+        return;
+    }
+
+    let finalHtml = `<h2 class="text-2xl font-bold text-[var(--tsar-accent)] mb-4">Résultats de l'Analyse par Composants</h2>`;
+    results.forEach(item => {
+        finalHtml += `
+            <div class="bg-[#111] p-4 rounded-lg mb-4 animate-fade-in">
+                <h3 class="text-lg font-semibold text-white">Composant Détecté : <span class="text-amber-400">${item.component}</span></h3>
+                <p class="text-sm text-gray-400">${item.cves.length} CVE(s) potentiellement associée(s) trouvée(s) :</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    <a href="https://nvd.nist.gov/vuln/detail/${cve}" target="_blank" class="text-xs bg-gray-700 text-gray-200 px-2 py-1 rounded hover:bg-[var(--tsar-accent)] hover:text-black transition">${cve}</a>
+                </div>
+            </div>
+        `;
+    });
+    successState.innerHTML = finalHtml;
+    successState.style.display = 'block';
+  }
+
+  function getSeverityClass(severity) {
+    if (!severity) return 'bg-gray-500';
+    switch (severity.toUpperCase()) {
+      case 'CRITICAL': return 'bg-purple-600';
+      case 'HIGH':   return 'bg-red-600';
+      case 'MEDIUM':  return 'bg-orange-500';
+      case 'LOW':   return 'bg-yellow-500';
+      case 'INFO': return 'bg-blue-500';
+      default:         return 'bg-gray-500';
+    }
+  }
+
+  if (jobId) {
+    pollStatus();
+  } else {
+    loadingState.style.display = 'none';
+  }
+});
+</script>
+{% endraw %}
+
+<style>
+  .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+{% endblock %}

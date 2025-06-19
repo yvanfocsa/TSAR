@@ -1,0 +1,14 @@
+# Fichier .gitignore pour TSAR
+
+# Ignorer les variables d'environnement locales
+.env
+
+# Ignorer les configurations contenant des secrets
+/config/subfinder/provider-config.yaml
+
+# Ignorer les fichiers générés par Python
+__pycache__/
+*.pyc
+
+# Ignorer les fichiers de configuration VPN générés
+/vpn_configs/wg0.conf

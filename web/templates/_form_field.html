@@ -1,0 +1,47 @@
+{# web/templates/_form_field.html #}
+{# Ce template partiel affiche un seul champ de formulaire #}
+{# Il est appelé avec la variable 'field' et potentiellement 'recent_targets' #}
+{% from "_macros.html" import target_selector with context %}
+
+<div>
+  <label for="{{ field.name }}" class="block text-sm font-medium mb-2 text-gray-200">
+    {{ field.name|replace('_', ' ')|capitalize }}
+  </label>
+  
+  {# Cas spécial pour le champ 'target' qui utilise la macro #}
+  {% if field.name == 'target' %}
+    {{ target_selector('main', recent_targets=recent_targets) }}
+
+  {% elif field.type == 'string' %}
+    <input type="text" name="{{ field.name }}" id="{{ field.name }}"
+           placeholder="{{ field.placeholder or '' }}"
+           {% if field.required %}required{% endif %}
+           class="w-full px-4 py-2 bg-[#1e1e1e] border border-[#444] rounded focus:ring-[var(--tsar-accent)]">
+  
+  {% elif field.type == 'select' %}
+    <select name="{{ field.name }}" id="{{ field.name }}"
+            class="w-full px-4 py-2 bg-[#1e1e1e] border border-[#444] rounded focus:ring-[var(--tsar-accent)]">
+      {% for choice in field.choices %}
+        <option value="{{ choice }}" {% if choice == field.default %}selected{% endif %}>
+          {{ choice|capitalize }}
+        </option>
+      {% endfor %}
+    </select>
+  
+  {% elif field.type == 'multiselect' %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {% for choice in field.choices %}
+        <label class="flex items-center p-3 bg-[#1e1e1e] hover:bg-[#2a2a2a] rounded-lg cursor-pointer transition">
+          <input type="checkbox" name="{{ field.name }}" value="{{ choice }}"
+                 {% if choice in (field.default or []) %}checked{% endif %}
+                 class="h-5 w-5 text-[var(--tsar-accent)] rounded focus:ring-[var(--tsar-accent)]">
+          <span class="ml-3 text-gray-200 font-medium capitalize">{{ choice }}</span>
+        </label>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if field.description %}
+    <p class="text-xs text-gray-500 mt-2">{{ field.description }}</p>
+  {% endif %}
+</div>

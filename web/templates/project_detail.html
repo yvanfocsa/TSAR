@@ -1,0 +1,448 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-7xl mx-auto py-12 space-y-8">
+  <div>
+    <a href="{{ url_for('routes.projects_list') }}" class="text-sm text-gray-400 hover:text-[var(--tsar-accent)]">&larr; Retour aux projets</a>
+    <h1 class="text-5xl font-extrabold text-[var(--tsar-accent)] mt-2">{{ project.name }}</h1>
+    <p class="text-gray-400 mt-2">{{ project.description }}</p>
+  </div>
+
+  <!-- Système d'onglets moderne et épuré -->
+  <div class="border-b border-gray-700">
+    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+      <button id="tab-synthèse" onclick="switchTab('synthèse')" class="tab-btn-line active">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" /><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" /></svg>
+        <span>Synthèse</span>
+      </button>
+      <button id="tab-vulns" onclick="switchTab('vulns')" class="tab-btn-line">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd" /></svg>
+        <span>Vulnérabilités</span>
+      </button>
+      <button id="tab-rapports" onclick="switchTab('rapports')" class="tab-btn-line">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>
+        <span>Rapports</span>
+      </button>
+      <button id="tab-documents" onclick="switchTab('documents')" class="tab-btn-line">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z" clip-rule="evenodd" /><path d="M6 12a2 2 0 012-2h8a2 2 0 012 2v2a2 2 0 01-2 2H8a2 2 0 01-2-2v-2z" /></svg>
+        <span>Documents</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Contenu des onglets -->
+  <div class="mt-8">
+    <!-- Onglet Synthèse -->
+    <div id="content-synthèse" class="tab-content">
+      <div id="stats-loader" class="text-center p-8">
+        <svg class="animate-spin mx-auto h-8 w-8 text-[var(--tsar-accent)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <p class="mt-2 text-gray-400">Chargement de la synthèse...</p>
+      </div>
+      <div id="stats-content" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-1 bg-translucent p-6 rounded-2xl">
+          <h3 class="text-xl font-bold text-white mb-4">Vulnérabilités par Sévérité</h3>
+          <canvas id="vulnerabilityChart"></canvas>
+        </div>
+        <div class="lg:col-span-2 bg-translucent p-6 rounded-2xl">
+          <h3 class="text-xl font-bold text-white mb-4">Chronologie du Projet</h3>
+          <div id="timeline-container" class="relative">
+            <!-- La ligne verticale sera créée par CSS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Onglet Vulnérabilités -->
+    <div id="content-vulns" class="tab-content hidden">
+      <div class="bg-translucent p-8 rounded-2xl">
+        <h2 class="text-2xl font-bold text-white mb-6">Détail des Vulnérabilités</h2>
+        {% if vulnerabilities %}
+          <div class="space-y-6">
+            {% for vuln in vulnerabilities %}
+              <div class="bg-[#111] p-6 rounded-lg border-l-4
+                {% if vuln.severity == 'CRITICAL' %} border-purple-500
+                {% elif vuln.severity == 'HIGH' %} border-red-500
+                {% elif vuln.severity == 'MEDIUM' %} border-orange-500
+                {% elif vuln.severity == 'LOW' %} border-yellow-500
+                {% else %} border-gray-500 {% endif %}">
+
+                <div class="flex justify-between items-start">
+                  <h3 class="text-xl font-bold text-[var(--tsar-accent)]">{{ vuln.cve_id }}</h3>
+                  <div class="text-right">
+                    <span class="font-bold text-white">{{ vuln.severity or 'INCONNUE' }}</span>
+                    <p class="text-sm text-gray-400">Score: {{ '%.1f'|format(vuln.cvss_score) if vuln.cvss_score else 'N/A' }}</p>
+                  </div>
+                </div>
+                <p class="text-sm text-gray-500 mt-1">Composant: {{ vuln.component }} | Trouvé dans le rapport #{{ vuln.report_id }}</p>
+                <p class="mt-4 text-gray-300">{{ vuln.summary }}</p>
+                <div class="mt-4">
+                  <a href="https://nvd.nist.gov/vuln/detail/{{ vuln.cve_id }}" target="_blank" class="text-sm text-blue-400 hover:underline">
+                    Voir sur NVD.NIST.GOV &rarr;
+                  </a>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-gray-500 text-center py-8">Aucune vulnérabilité n'a été automatiquement détectée pour ce projet.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Onglet Rapports -->
+    <div id="content-rapports" class="tab-content hidden">
+      {# Formulaire de génération de rapport de synthèse #}
+      {% if mod_report_generator %}
+        <div class="bg-[var(--tsar-card)] p-8 rounded-2xl shadow-lg mb-8" id="report-generator-section">
+          <h2 class="text-2xl font-bold text-[var(--tsar-accent)] mb-4">Générer un Rapport de Synthèse</h2>
+          <p class="text-gray-400 mb-6">
+            Générez un rapport PDF combinant des scans sur les aspects OSINT de ce projet.
+          </p>
+
+          <form id="project-report-generator-form"
+                action="{{ url_for('routes.module_run', name=mod_report_generator.name) }}"
+                method="post"
+                class="space-y-6">
+
+            {# Champ cible (pré-rempli et caché ou en lecture seule) #}
+            <input type="hidden" name="target" value="{{ project.name }}">
+            <div class="bg-[#111] p-4 rounded-lg border border-[#333]">
+              <label for="report_target_display" class="block text-sm font-medium mb-2 text-gray-200">Cible du Rapport</label>
+              <input type="text" id="report_target_display" value="{{ project.name }}" readonly
+                     class="w-full px-4 py-2 bg-[#2a2a2a] border border-[#444] rounded text-gray-300 cursor-not-allowed">
+            </div>
+
+            {# Sélecteur de sections #}
+            <div>
+              <label class="block text-sm font-medium mb-2 text-gray-200">Sections à inclure</label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {% for value, label in report_sections_choices %}
+                  <label class="flex items-center p-3 bg-[#1e1e1e] hover:bg-[#2a2a2a] rounded-lg cursor-pointer transition">
+                    <input type="checkbox" name="sections" value="{{ value }}"
+                           {% if value in (mod_report_generator.schema[0].fields[1].default or []) %}checked{% endif %}
+                           class="h-5 w-5 text-[var(--tsar-accent)] rounded focus:ring-[var(--tsar-accent)]">
+                    <span class="ml-3 text-gray-200 font-medium capitalize">{{ label }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-[#333] flex justify-center">
+              <button type="submit" id="generate-project-report-btn" class="flex items-center gap-3 px-8 py-3 bg-[var(--tsar-accent)] text-black font-bold rounded-full shadow-lg hover:bg-[var(--tsar-accent2)] transition disabled:opacity-50">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 014-4h.01M15 16v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 16a4 4 0 01-4 4H9a4 4 0 01-4-4v-2m12 6h.01" /></svg>
+                Générer le Rapport
+              </button>
+            </div>
+          </form>
+
+          {# Zone pour afficher le statut de la génération du rapport #}
+          <div id="report-generation-status-container" class="hidden mt-8 bg-translucent p-6 rounded-2xl shadow-lg text-center">
+            <div id="report-generation-loading-state" class="inline-flex items-center">
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-[var(--tsar-accent)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              <span id="report-generation-status-message">Génération du rapport en cours... Veuillez patienter, cela peut prendre plusieurs minutes.</span>
+            </div>
+            <div id="report-generation-success-state" class="hidden text-green-400 mt-4"></div>
+            <div id="report-generation-error-state" class="hidden text-red-400 mt-4"></div>
+          </div>
+        </div>
+      {% endif %}
+
+      <h2 class="text-2xl font-bold text-white mb-6">Rapports de Scan</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% set reports = project.reports|sort(attribute='created_at', reverse=True) %}
+        {% for report in reports %}
+          <div class="bg-[#111] p-6 rounded-2xl shadow-inner hover:shadow-lg transition flex flex-col justify-between max-w-sm">
+            <div>
+              <h4 class="text-lg font-semibold text-[var(--tsar-text)] mb-2 break-words">
+                {{ report.filename }}
+              </h4>
+              <p class="text-xs text-gray-500">Généré le {{ report.created_at|paris_time }}</p>
+            </div>
+
+            <div class="mt-4 flex justify-end items-center gap-3">
+                <!-- Bouton Supprimer -->
+                <form action="{{ url_for('routes.delete_report', rid=report.id) }}"
+                      method="post"
+                      onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce rapport définitivement ?');">
+                  <button type="submit"
+                          class="p-2 rounded-lg text-gray-400 hover:bg-red-600 hover:text-white transition-colors"
+                          title="Supprimer le rapport">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                  </button>
+                </form>
+
+                <!-- Dropdown pour les formats -->
+                <div class="relative inline-block text-left">
+                    <div>
+                        <button type="button" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[var(--tsar-accent)] text-black font-medium rounded-lg hover:bg-[var(--tsar-accent2)] transition" aria-expanded="false" aria-haspopup="true" onclick="toggleDropdown(this)">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 20h18" />
+                                <path d="M12 3v14" />
+                                <path d="M8 13l4 4 4-4" />
+                            </svg>
+                            Télécharger
+                            <svg class="-mr-1 h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                        </button>
+                    </div>
+
+                    <div class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-[#111] ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-10">
+                        <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                            <a href="{{ url_for('routes.get_report_formatted', rid=report.id, report_format='pdf') }}" target="_blank" class="block px-4 py-2 text-sm text-gray-300 hover:bg-[var(--tsar-accent)] hover:text-black" role="menuitem">Visualiser (PDF)</a>
+                            <a href="{{ url_for('routes.get_report_formatted', rid=report.id, report_format='download_pdf') }}" class="block px-4 py-2 text-sm text-gray-300 hover:bg-[var(--tsar-accent)] hover:text-black" role="menuitem">Télécharger (PDF)</a>
+                            <a href="{{ url_for('routes.get_report_formatted', rid=report.id, report_format='html') }}" target="_blank" class="block px-4 py-2 text-sm text-gray-300 hover:bg-[var(--tsar-accent)] hover:text-black" role="menuitem">Visualiser (HTML)</a>
+                            <a href="{{ url_for('routes.get_report_formatted', rid=report.id, report_format='txt') }}" class="block px-4 py-2 text-sm text-gray-300 hover:bg-[var(--tsar-accent)] hover:text-black" role="menuitem">Télécharger (TXT)</a>
+                        </div>
+                    </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Onglet Documents -->
+    <div id="content-documents" class="tab-content hidden">
+      <div class="bg-translucent p-8 rounded-2xl">
+        <h2 class="text-2xl font-bold text-white mb-6">Documents du Projet</h2>
+        <form action="{{ url_for('routes.upload_to_project', project_id=project.id) }}" method="post" enctype="multipart/form-data" class="mb-8 p-4 border border-dashed border-gray-600 rounded-lg flex items-center gap-4">
+          <input type="file" name="file" required class="text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[var(--tsar-accent)] file:text-black hover:file:bg-[var(--tsar-accent2)]">
+          <button type="submit" class="px-6 py-2 bg-[var(--tsar-accent)] text-black rounded-md font-bold">Uploader</button>
+        </form>
+        <ul class="space-y-2">
+          {% set files = project.files|sort(attribute='uploaded_at', reverse=True) %}
+          {% for file in files %}
+            <li class="flex justify-between items-center bg-[#111] p-3 rounded-lg">
+              <span class="text-gray-300">{{ file.filename }}</span>
+              <a href="{{ url_for('routes.download_project_file', file_id=file.id) }}" class="text-sm text-[var(--tsar-accent)] hover:underline">Télécharger</a>
+            </li>
+          {% else %}
+            <p class="text-gray-500">Aucun document uploadé.</p>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(tabName) {
+  document.querySelectorAll('.tab-btn-line').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(`tab-${tabName}`).classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+  document.getElementById(`content-${tabName}`).classList.remove('hidden');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const projectId = {{ project.id }};
+  const loader = document.getElementById('stats-loader');
+  const statsContent = document.getElementById('stats-content');
+  const timelineContainer = document.getElementById('timeline-container');
+
+  fetch(`/project/${projectId}/stats`)
+    .then(response => response.json())
+    .then(data => {
+      loader.classList.add('hidden');
+      statsContent.classList.remove('hidden');
+
+      const chartCtx = document.getElementById('vulnerabilityChart').getContext('2d');
+      const totalVulns = data.severity_chart.data.reduce((a, b) => a + b, 0);
+      if (totalVulns > 0) {
+        new Chart(chartCtx, {
+          type: 'doughnut',
+          data: {
+            labels: data.severity_chart.labels,
+            datasets: [{
+              data: data.severity_chart.data,
+              backgroundColor: ['#9333ea', '#dc2626', '#f97316', '#facc15', '#6b7280'],
+              borderColor: '#1e1e1e',
+              borderWidth: 3
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'top', labels: { color: '#e5e5e5' } }
+            }
+          }
+        });
+      } else {
+        document.getElementById('vulnerabilityChart').parentElement.innerHTML += '<p class="text-center text-gray-500 mt-4">Aucune vulnérabilité détectée dans les rapports.</p>';
+      }
+
+      if (data.timeline.length > 0) {
+        const scanIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>`;
+        const uploadIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>`;
+
+        let timelineHtml = '';
+        data.timeline.forEach(event => {
+          const eventDate = new Date(event.date);
+          const formattedDateTime = eventDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) + ' à ' + eventDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+          timelineHtml += `
+            <div class="timeline-item-modern">
+              <div class="timeline-dot-modern ${event.type === 'scan' ? 'text-blue-400' : 'text-green-400'}">
+                ${event.type === 'scan' ? scanIcon : uploadIcon}
+              </div>
+              <div class="timeline-content-modern">
+                <p class="font-semibold text-gray-200">${event.details}</p>
+                <time class="text-xs text-gray-500">${formattedDateTime}</time>
+              </div>
+            </div>
+          `;
+        });
+        timelineContainer.innerHTML = timelineHtml;
+
+      } else {
+        timelineContainer.innerHTML = '<p class="text-center text-gray-500">Aucun événement à afficher.</p>';
+      }
+    })
+    .catch(error => {
+      console.error("Erreur lors du chargement des stats:", error);
+      loader.innerHTML = '<p class="text-red-400">Impossible de charger la synthèse du projet.</p>';
+    });
+});
+
+// Script pour gérer le formulaire de génération de rapport de synthèse
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('project-report-generator-form');
+  const generateBtn = document.getElementById('generate-project-report-btn');
+  const statusContainer = document.getElementById('report-generation-status-container');
+  const loadingState = document.getElementById('report-generation-loading-state');
+  const statusMessage = document.getElementById('report-generation-status-message');
+  const successState = document.getElementById('report-generation-success-state');
+  const errorState = document.getElementById('report-generation-error-state');
+
+  let pollingInterval = null;
+
+  function resetStatusDisplay() {
+      statusContainer.classList.add('hidden');
+      loadingState.classList.remove('hidden');
+      successState.classList.add('hidden');
+      errorState.classList.add('hidden');
+      statusMessage.textContent = 'Génération du rapport en cours... Veuillez patienter, cela peut prendre plusieurs minutes.';
+      generateBtn.disabled = false;
+      if (pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+      }
+  }
+
+  if (form) {
+    console.log("Formulaire de génération de rapport trouvé.");
+    form.addEventListener('submit', function(event) {
+      event.preventDefault();
+      console.log("Événement submit du formulaire déclenché.");
+
+      generateBtn.disabled = true;
+      statusContainer.classList.remove('hidden'); // Afficher le conteneur de statut
+      loadingState.classList.remove('hidden'); // S'assurer que le spinner est visible
+      successState.classList.add('hidden');
+      errorState.classList.add('hidden');
+
+      const formData = new FormData(form);
+      const actionUrl = form.action;
+      console.log("URL d'action du formulaire:", actionUrl);
+
+      fetch(actionUrl, {
+        method: 'POST',
+        body: formData,
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.text().then(text => { throw new Error(text || response.statusText); });
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.job_id) {
+          console.log("Job ID reçu:", data.job_id);
+          startReportPolling(data.job_id);
+        } else if (data.error) {
+          console.error("Erreur au lancement de la tâche (côté serveur):", data.error);
+          errorState.textContent = 'Erreur lors du lancement de la tâche : ' + data.error;
+          errorState.classList.remove('hidden');
+          loadingState.classList.add('hidden'); // Cacher le spinner
+          generateBtn.disabled = false;
+          showToast('Erreur lors du lancement du rapport.', 'error');
+        } else {
+          console.warn("Opération terminée, mais pas de job_id. Vérifiez les logs Celery pour plus de détails.");
+          statusMessage.textContent = 'Opération terminée, mais pas de job_id. Vérifiez les logs.';
+          loadingState.classList.add('hidden'); // Cacher le spinner
+          generateBtn.disabled = false;
+          showToast('Opération terminée (voir logs du worker si problème).', 'info');
+        }
+      })
+      .catch(error => {
+        console.error('Erreur lors de la soumission de la requête Fetch:', error);
+        errorState.textContent = 'Erreur de soumission de la requête : ' + (error.message || error);
+        errorState.classList.remove('hidden');
+        loadingState.classList.add('hidden'); // Cacher le spinner
+        generateBtn.disabled = false;
+        showToast('Erreur critique.', 'error');
+      });
+    });
+  } else {
+    console.warn("Formulaire de génération de rapport (ID: project-report-generator-form) non trouvé. Vérifiez l'HTML.");
+  }
+
+  function startReportPolling(jobId) {
+    if (pollingInterval) clearInterval(pollingInterval); // Clear any existing interval
+
+    pollingInterval = setInterval(() => {
+      fetch(`/job/status/${jobId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.state === 'SUCCESS') {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+            console.log("Rapport de synthèse terminé avec succès:", data.result);
+            successState.textContent = 'Rapport généré avec succès ! La page va se recharger pour afficher le nouveau rapport.';
+            successState.classList.remove('hidden');
+            loadingState.classList.add('hidden'); // Cacher le spinner
+            showToast('Rapport de synthèse généré !', 'success');
+            // Recharger la page après un court délai pour voir le rapport
+            setTimeout(() => {
+                // S'assurer que l'onglet Rapports est actif après le rechargement
+                window.location.hash = '#content-rapports'; // Ajout d'un ancre pour la redirection
+                window.location.reload();
+            }, 2000);
+          } else if (data.state === 'FAILURE') {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+            console.error("Rapport de synthèse a échoué:", data.error);
+            errorState.textContent = 'La génération du rapport a échoué : ' + (data.error || 'Erreur inconnue.');
+            errorState.classList.remove('hidden');
+            loadingState.classList.add('hidden'); // Cacher le spinner
+            generateBtn.disabled = false;
+            showToast('Génération du rapport échouée.', 'error');
+          } else if (data.state === 'PENDING' || data.state === 'STARTED' || data.state === 'PROGRESS') {
+            // Mise à jour du message si on a un état de progression plus précis (si implémenté)
+            statusMessage.textContent = `Génération du rapport en cours... (${data.state}) Cela peut prendre du temps.`;
+          }
+        })
+        .catch(err => {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+          console.error("Erreur lors du polling du statut du job:", err);
+          errorState.textContent = 'Erreur de communication avec le serveur pour le statut : ' + (err.message || err);
+          errorState.classList.remove('hidden');
+          loadingState.classList.add('hidden'); // Cacher le spinner
+          generateBtn.disabled = false;
+          showToast('Erreur réseau lors du suivi du rapport.', 'error');
+        });
+    }, 3000); // Poll toutes les 3 secondes
+  }
+
+  // Gérer l'affichage des onglets au chargement initial et lors du rechargement
+  const currentHash = window.location.hash;
+  if (currentHash && currentHash.startsWith('#content-')) {
+      const tabName = currentHash.replace('#content-', '');
+      switchTab(tabName);
+  } else {
+      switchTab('synthèse'); // Onglet par défaut
+  }
+});
+</script>
+{% endblock %}

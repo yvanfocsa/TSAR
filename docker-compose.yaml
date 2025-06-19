@@ -1,0 +1,164 @@
+################################################################################
+#                    TSAR – stack 100 % localhost / sans IA                     #
+#  • Compose V2 n’a plus besoin du champ “version:”, on peut l’omettre.        #
+################################################################################
+
+name: tsar
+
+services:
+  # ───────────────────────── TOOLBOX (Kali headless) ────────────────────────────
+  toolbox:
+    container_name: toolbox
+    build:
+      context: ./toolbox
+      dockerfile: Dockerfile
+    command: tail -f /dev/null # conteneur toujours “vivant”
+    labels:
+      - "traefik.enable=false" # pas de Traefik dans la stack locale
+    networks: [tsar-net]
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv4.ip_forward=1
+    volumes:
+      - ./vpn_configs:/etc/wireguard
+      - ./config/subfinder:/root/.config/subfinder
+      - nuclei-templates-data:/root/.local/share/nuclei/templates
+    ports:
+      - "51915:51820/udp"
+
+  # ─────────────────────────────── POSTGRES -------------------------------------
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-tsar}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-tsarpass}
+      - POSTGRES_DB=${POSTGRES_DB:-tsar}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks: [tsar-net]
+
+  # ─────────────────────────────── REDIS ----------------------------------------
+  redis:
+    image: redis:7
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    networks: [tsar-net]
+
+  # ─────────────────────────────── CELERY WORKER (Tâches rapides) ---------------
+  worker:
+    build:
+      context: .
+      dockerfile: web/Dockerfile # même image que Flask
+    env_file: .env
+    environment:
+      - CELERY_BROKER_URL=${broker_url}
+      - CELERY_RESULT_BACKEND=${result_backend}
+      - TOOLBOX_CONTAINER=${TOOLBOX_CONTAINER}
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_started }
+      toolbox: { condition: service_started }
+    # MODIFIÉ : Utilisation du nouveau point d'entrée dans le package app
+    command: >
+      celery -A app.celery_app:celery_app worker
+             --loglevel=info
+             --concurrency=4
+             -Q default_queue
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./web/:/app # hot-reload
+      - ./modules/:/app/modules
+    networks: [tsar-net]
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ─────────────────────────────── CELERY WORKER (Tâches longues) ---------------
+  long_worker:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    env_file: .env
+    environment:
+      - CELERY_BROKER_URL=${broker_url}
+      - CELERY_RESULT_BACKEND=${result_backend}
+      - TOOLBOX_CONTAINER=${TOOLBOX_CONTAINER}
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_started }
+      toolbox: { condition: service_started }
+    # MODIFIÉ : Utilisation du nouveau point d'entrée dans le package app
+    command: >
+      celery -A app.celery_app:celery_app worker
+             --loglevel=info
+             --concurrency=2
+             -Q long_queue
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./web/:/app
+      - ./modules/:/app/modules
+    networks: [tsar-net]
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ─────────────────────────────── CELERY SCHEDULER (BEAT) ----------------------
+  scheduler:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    env_file: .env
+    environment:
+      - CELERY_BROKER_URL=${broker_url}
+      - CELERY_RESULT_BACKEND=${result_backend}
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_started }
+    # MODIFIÉ : Utilisation du nouveau point d'entrée dans le package app
+    command: >
+      celery -A app.celery_app:celery_app beat 
+             --loglevel=info
+    networks: [tsar-net]
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ─────────────────────────────── FLASK WEB ------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    env_file: .env
+    environment:
+      - CELERY_BROKER_URL=${broker_url}
+      - CELERY_RESULT_BACKEND=${result_backend}
+      - TOOLBOX_CONTAINER=${TOOLBOX_CONTAINER}
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_started }
+      toolbox: { condition: service_started }
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./web/:/app
+      - ./modules/:/app/modules
+    ports:
+      - "5373:5373" # http://localhost:5373
+    networks: [tsar-net]
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+################################################################################
+#                               NETWORKS & VOLUMES                              #
+################################################################################
+networks:
+  tsar-net:
+
+volumes:
+  db-data:
+  nuclei-templates-data:

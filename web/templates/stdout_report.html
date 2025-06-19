@@ -1,0 +1,240 @@
+{# web/templates/stdout_report.html #}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Rapport de Synthèse TSAR</title>
+  <style>
+    @page {
+      margin: 1.5cm;
+      background: #0f0f0f;
+      @bottom-center {
+        content: "Page " counter(page) " de " counter(pages);
+        font-family: 'Inter', sans-serif;
+        font-size: 9pt;
+        color: #555;
+      }
+    }
+    html, body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f0f0f;
+      color: #e5e5e5;
+      font-size: 10pt;
+      line-height: 1.5;
+    }
+    :root {
+      --tsar-accent: #e84545;
+      --tsar-card: #1e1e1e;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid var(--tsar-accent);
+      padding-bottom: 1cm;
+      margin-bottom: 1cm;
+    }
+    .header img {
+      height: 2cm;
+      width: auto;
+    }
+    .header-info {
+      text-align: right;
+    }
+    h1 {
+      font-size: 24pt;
+      color: var(--tsar-accent);
+      margin: 0;
+    }
+    h2 {
+      font-size: 16pt;
+      color: var(--tsar-accent);
+      margin: 1.5cm 0 0.5cm 0;
+      border-bottom: 1px solid #444;
+      padding-bottom: 0.2cm;
+      page-break-before: auto;
+      page-break-after: avoid;
+    }
+    .meta-info {
+      font-size: 10pt;
+      color: #aaa;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 5px;
+    }
+    .section-card {
+      background-color: var(--tsar-card);
+      border: 1px solid #333;
+      border-left: 4px solid var(--tsar-accent);
+      padding: 0.7cm;
+      margin-top: 1cm;
+      border-radius: 8px;
+      page-break-inside: avoid;
+    }
+    .section-card h3 {
+      font-size: 14pt;
+      margin: 0 0 0.5cm 0;
+      color: #fff;
+    }
+    pre {
+      background-color: #111;
+      padding: 0.5cm;
+      border-radius: 4px;
+      font-family: 'Fira Code', monospace;
+      font-size: 8pt;
+      color: #ccc;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      line-height: 1.4;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5cm;
+      page-break-inside: auto;
+    }
+    th, td {
+      border: 1px solid #444;
+      padding: 8px;
+      text-align: left;
+      font-size: 9pt;
+    }
+    th {
+      background-color: var(--tsar-accent);
+      color: #000;
+      font-weight: bold;
+    }
+    .footer {
+      position: fixed;
+      bottom: 0.5cm;
+      left: 1.5cm;
+      right: 1.5cm;
+      text-align: center;
+      font-size: 9pt;
+      color: #555;
+    }
+    /* NOUVEAU : Styles pour le rapport GoSearch */
+    .gosearch-result {
+      padding: 5px 10px;
+      margin-bottom: 4px;
+      border-radius: 4px;
+      font-family: 'Fira Code', monospace;
+      font-size: 9pt;
+    }
+    .gosearch-found {
+      background-color: rgba(4, 120, 87, 0.2); /* Vert */
+      border-left: 3px solid #10b981;
+    }
+    .gosearch-potential {
+      background-color: rgba(202, 138, 4, 0.2); /* Jaune */
+      border-left: 3px solid #f59e0b;
+    }
+    .gosearch-info {
+      color: #9ca3af; /* Gris */
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>{{ module.name }}</h1>
+      <p class="meta-info">
+        <strong>Projet :</strong> {{ project.name if project else 'N/A' }}<br>
+        <strong>Date :</strong> {{ date|paris_time }}
+      </p>
+    </div>
+  </div>
+
+  {# Section Synthèse des Vulnérabilités (uniquement pour le rapport de synthèse) #}
+  {% if vulnerabilities %}
+    <h2>Synthèse des Vulnérabilités</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:15%;">Sévérité</th>
+          <th style="width:20%;">CVE</th>
+          <th style="width:10%;">Score</th>
+          <th style="width:55%;">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for vuln in vulnerabilities %}
+          <tr>
+            <td>{{ vuln.severity or 'Inconnue' }}</td>
+            <td>{{ vuln.cve_id }}</td>
+            <td>{{ '%.1f'|format(vuln.cvss_score) if vuln.cvss_score else 'N/A' }}</td>
+            <td>{{ vuln.summary }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {# On n'affiche la sortie brute que si elle existe (pas pour le rapport de synthèse) #}
+  {% if output %}
+    <h2>Résultats Détaillés des Scans</h2>
+
+    {# NOUVEAU : Bloc de formatage spécial pour le module GoSearch #}
+    {% if module.name == 'OSINT – Recherche de Pseudo (GoSearch)' %}
+      <div class="section-card">
+        <h3>Résultats de la recherche pour "{{ params.username }}"</h3>
+        {% for line in output.split('\n') %}
+          {% set clean_line = line | replace('[2J', '') | replace('[33m', '') | replace('[32m', '') | replace('[31m', '') | replace('[0m', '') %}
+          
+          {% if '[+]' in clean_line %}
+            <div class="gosearch-result gosearch-found">
+              <strong>✅ Trouvé :</strong> {{ clean_line | replace('[+]', '') | trim }}
+            </div>
+          {% elif '[?]' in clean_line %}
+            <div class="gosearch-result gosearch-potential">
+              <strong>⚠️ Potentiel :</strong> {{ clean_line | replace('[?]', '') | trim }}
+            </div>
+          {% elif '[*]' in clean_line or '[-]' in clean_line or '::' in clean_line %}
+            <div class="gosearch-result gosearch-info">
+              {{ clean_line | replace('[*]', 'ℹ️') | replace('[-]', '❌') | trim }}
+            </div>
+          {% elif clean_line.strip() and '________' not in clean_line and 'v1.0.0' not in clean_line %}
+            <div class="gosearch-result">
+              {{ clean_line }}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+    {# Bloc existant pour tous les autres modules #}
+    {% else %}
+      {% set sections = output.split('###-SECTION-START:') %}
+      {% if sections|length > 1 %}
+        {% for section_block in sections %}
+          {% if section_block.strip() %}
+            {% set parts = section_block.split('-###') %}
+            {% set section_name = parts[0].strip() %}
+            
+            {% if parts|length > 1 %}
+              {% set section_content = parts[1].strip() %}
+              
+              <div class="section-card">
+                <h3>{{ section_name }}</h3>
+                <pre>{{ section_content }}</pre>
+              </div>
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <div class="section-card">
+            <h3>Sortie Brute</h3>
+            <pre>{{ output or "Aucune sortie n'a été générée par le scan." }}</pre>
+        </div>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+
+  <div class="footer">
+    Rapport généré par TSAR Toolbox
+  </div>
+</body>
+</html>

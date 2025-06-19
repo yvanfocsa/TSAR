@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+{% from "_macros.html" import target_selector with context %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto py-12">
+  <div class="bg-translucent p-10 rounded-3xl shadow-2xl">
+    <h1 class="text-4xl font-extrabold mb-4 text-[var(--tsar-accent)] text-center">
+      {{ mod.name }}
+    </h1>
+    <p class="text-gray-400 mb-8 text-center">
+      {{ mod.description }}
+    </p>
+
+    <form id="module-launcher-form"
+          action="{{ url_for('routes.module_run', name=mod.name) }}"
+          method="post"
+          class="space-y-6">
+
+      {% if mod.name == 'Pivot & Audit Réseau Interne' %}
+        <div>
+          <label class="block text-lg font-semibold text-white mb-4">
+            1. Choisissez une action :
+          </label>
+          <div class="action-selector-grid">
+            {% for choice in mod.schema[0].fields[0].choices %}
+              <label class="action-card">
+                <input type="radio" name="action" value="{{ choice }}" 
+                       onchange="toggleFields()"
+                       {% if loop.first %}checked{% endif %}>
+                <div class="action-card-content">
+                  <span class="action-card-number">{{ loop.index }}</span>
+                  <span class="action-card-text">{{ choice|replace('_', ' ')|capitalize }}</span>
+                </div>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="mt-6 space-y-6 transition-all duration-300" id="contextual-fields">
+          
+          <div id="generate-config-fields" class="hidden space-y-6">
+            <div>
+              <label class="block text-sm font-medium mb-2 text-gray-200">2. Système d'exploitation de la cible</label>
+              <div class="grid grid-cols-2 gap-4">
+                {% for os_choice in mod.schema[0].fields[1].choices %}
+                <label class="flex items-center p-3 bg-[#1e1e1e] hover:bg-[#2a2a2a] rounded-lg cursor-pointer transition">
+                  <input type="radio" name="target_os" value="{{ os_choice }}" {% if loop.first %}checked{% endif %}
+                         class="h-5 w-5 text-[var(--tsar-accent)] rounded focus:ring-[var(--tsar-accent)]">
+                  <span class="ml-3 text-gray-200 font-medium">{{ os_choice }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            <div>
+              <label for="public_ip" class="block text-sm font-medium mb-2 text-gray-200">3. Votre IP Publique (ou nom de domaine)</label>
+              
+              <div class="space-y-2 mb-3">
+                {% if pivot_public_url %}
+                  <div class="bg-purple-900/30 border border-purple-500 p-3 rounded-lg">
+                    <div class="flex justify-between items-center">
+                      <div>
+                        <span class="text-xs font-bold text-purple-400">URL PUBLIQUE DU PIVOT (.ENV)</span>
+                        <p class="font-mono text-white">{{ pivot_public_url }}</p>
+                      </div>
+                      <button type="button" onclick="useAddress('{{ pivot_public_url }}')" class="px-3 py-1 text-xs bg-purple-500 text-black font-bold rounded hover:bg-purple-400">Utiliser</button>
+                    </div>
+                  </div>
+                {% endif %}
+
+                {% if detected_ip and detected_ip != 'Détection échouée' %}
+                  <div class="bg-gray-800/50 border border-gray-600 p-3 rounded-lg">
+                    <div class="flex justify-between items-center">
+                      <div>
+                        <span class="text-xs font-bold text-gray-400">IP PUBLIQUE DÉTECTÉE (ALTERNATIVE)</span>
+                        <p class="font-mono text-white">{{ detected_ip }}</p>
+                      </div>
+                      <button type="button" onclick="useAddress('{{ detected_ip }}')" class="px-3 py-1 text-xs bg-gray-500 text-white font-bold rounded hover:bg-gray-400">Utiliser</button>
+                    </div>
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="relative">
+                <input type="text" name="public_ip" id="public_ip"
+                       value="{{ pivot_public_url or detected_ip or '' }}"
+                       placeholder="IP publique ou nom de domaine de ce serveur TSAR"
+                       required
+                       class="w-full px-4 py-2 bg-[#1e1e1e] border border-[#444] rounded focus:ring-[var(--tsar-accent)]">
+                <button type="button" onclick="copyToClipboard('public_ip')" title="Copier dans le presse-papiers" class="absolute right-2 top-1/2 -translate-y/2 p-2 rounded-md text-gray-400 hover:bg-[var(--tsar-accent)] hover:text-black transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div id="audit-fields" class="hidden">
+            <label for="target-input-vpn" class="block text-sm font-medium mb-2 text-gray-200">2. Cible de l'audit (plage d'adresses)</label>
+            {{ target_selector('vpn', name='target', placeholder='Ex: 192.168.1.0/24', recent_targets=recent_targets) }}
+          </div>
+        </div>
+
+      {# --- FORMULAIRE UNIVERSEL POUR TOUS LES AUTRES MODULES --- #}
+      {% else %}
+        {% for field_group in mod.schema %}
+          <div class="bg-[#111] p-6 rounded-xl border border-[#333]">
+            <h3 class="text-lg font-semibold text-[var(--tsar-accent)] mb-4">{{ field_group.group_name }}</h3>
+            <div class="space-y-4">
+              {% for field in field_group.fields %}
+                {# MODIFICATION : Ajout d'une condition pour le module "Subdomain Takeover Scan" #}
+                {% if mod.name == 'Subdomain Takeover Scan' and field.name == 'target' %}
+                  {# Pour ce module spécifique, on affiche un champ de texte simple #}
+                  <div>
+                    <label for="{{ field.name }}" class="block text-sm font-medium mb-2 text-gray-200">
+                      {{ field.name|replace('_', ' ')|capitalize }}
+                    </label>
+                    <input type="text" name="{{ field.name }}" id="{{ field.name }}"
+                           placeholder="{{ field.placeholder or '' }}"
+                           {% if field.required %}required{% endif %}
+                           class="w-full px-4 py-2 bg-[#1e1e1e] border border-[#444] rounded focus:ring-[var(--tsar-accent)]">
+                    {% if field.description %}
+                      <p class="text-xs text-gray-500 mt-2">{{ field.description }}</p>
+                    {% endif %}
+                  </div>
+                {% else %}
+                  {# Pour tous les autres modules, on utilise le rendu de champ normal #}
+                  {% include '_form_field.html' with context %}
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <div class="pt-8 flex justify-center">
+        <button type="submit" id="launch-btn" class="flex items-center gap-3 px-10 py-3 bg-[var(--tsar-accent)] text-black font-bold rounded-full shadow-lg hover:bg-[var(--tsar-accent2)] transition disabled:opacity-50">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /></svg>
+          Exécuter l'Action
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div id="notification-zone" class="hidden mt-8"></div>
+
+  <style>
+    .action-selector-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+    .action-card { position: relative; display: block; cursor: pointer; }
+    .action-card input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+    .action-card-content { display: flex; align-items: center; gap: 0.75rem; padding: 1rem; background-color: #111; border: 2px solid #333; border-radius: 0.5rem; transition: all 0.2s ease-in-out; }
+    .action-card:hover .action-card-content { border-color: var(--tsar-accent); }
+    .action-card input:checked + .action-card-content { background-color: var(--tsar-accent); border-color: var(--tsar-accent2); color: black; box-shadow: 0 0 15px var(--tsar-accent-translucent); }
+    .action-card-number { font-weight: bold; font-size: 1.25rem; color: #555; }
+    .action-card input:checked + .action-card-content .action-card-number { color: black; }
+    .action-card-text { font-weight: 500; }
+    #log-output { max-height: 400px; overflow-y: auto; }
+  </style>
+
+  <script>
+    // Fonction pour remplir le champ de saisie
+    function useAddress(address) {
+      const inputElement = document.getElementById('public_ip');
+      if (inputElement) {
+        inputElement.value = address;
+        showToast('Adresse sélectionnée !', 'success');
+      }
+    }
+
+    // Fonction de copie unifiée et corrigée
+    function copyToClipboard(elementId) {
+      const element = document.getElementById(elementId);
+      if (!element) return;
+
+      const textToCopy =
+        element.tagName === "INPUT" || element.tagName === "TEXTAREA"
+          ? element.value
+          : element.innerText;
+
+      if (textToCopy) {
+        navigator.clipboard
+          .writeText(textToCopy)
+          .then(() => {
+            showToast("Copié dans le presse-papiers !", "success");
+          })
+          .catch((err) => {
+            showToast("Erreur de copie.", "error");
+            console.error("Erreur de copie: ", err);
+          });
+      }
+    }
+
+    // Fonction d'initialisation du sélecteur de cible
+    function initTargetSelector(selectorId) {
+      const selector = document.getElementById(selectorId);
+      if (!selector) return; // Correction: Ne rien faire si l'élément n'existe pas
+
+      const input = selector.querySelector('input[type="text"]');
+      const dropdown = selector.querySelector('.target-dropdown');
+      const search = selector.querySelector('.target-dropdown-search');
+      const items = selector.querySelectorAll('.target-dropdown-item');
+
+      input.addEventListener('focus', () => dropdown.classList.remove('hidden'));
+      document.addEventListener('click', (e) => {
+        if (!selector.contains(e.target)) dropdown.classList.add('hidden');
+      });
+      items.forEach(item => {
+        item.addEventListener('click', () => {
+          input.value = item.dataset.value;
+          dropdown.classList.add('hidden');
+        });
+      });
+      search.addEventListener('input', () => {
+        const filter = search.value.toLowerCase();
+        items.forEach(item => {
+          const text = item.textContent.toLowerCase();
+          item.style.display = text.includes(filter) ? '' : 'none';
+        });
+      });
+    }
+    
+    function toggleFields() {
+      const selectedAction = document.querySelector('input[name="action"]:checked').value;
+      const generateFields = document.getElementById('generate-config-fields');
+      const auditFields = document.getElementById('audit-fields');
+      
+      generateFields.style.display = 'none';
+      auditFields.style.display = 'none';
+
+      if (selectedAction === 'generate_config') {
+        generateFields.style.display = 'block';
+      } else if (selectedAction === 'audit_reseau_complet' || selectedAction === 'audit_iot_specifique') {
+        auditFields.style.display = 'block';
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialise les sélecteurs qui existent sur la page
+      initTargetSelector('target-selector-main');
+      initTargetSelector('target-selector-vpn');
+
+      if (document.querySelector('input[name="action"]')) {
+        toggleFields();
+      }
+      const form = document.getElementById('module-launcher-form');
+      const launchBtn = document.getElementById('launch-btn');
+      const notificationZone = document.getElementById('notification-zone');
+      
+      let eventSource = null;
+      let pollingInterval = null;
+      let currentJobId = null;
+
+      function colorizeLogLine(line) {
+        const escapeHtml = (unsafe) => unsafe.replace(/[&<"']/g, (m) => ({'&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;'}[m]));
+        let safeLine = escapeHtml(line);
+
+        return safeLine
+          .replace(/\[critical\]/gi, '<span class="log-critical">[critical]</span>')
+          .replace(/\[high\]/gi, '<span class="log-high">[high]</span>')
+          .replace(/\[medium\]/gi, '<span class="log-medium">[medium]</span>')
+          .replace(/\[low\]/gi, '<span class="log-low">[low]</span>')
+          .replace(/\[info\]/gi, '<span class="log-info">[info]</span>')
+          .replace(/\[\+\]/g, '<span class="log-success">[+]</span>')
+          .replace(/\[!\]/g, '<span class="log-error">[!]</span>')
+          .replace(/(CVE-\d{4}-\d{4,7})/gi, '<span class="log-cve">$1</span>')
+          .replace(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/g, '<span class="log-ip">$1</span>');
+      }
+
+      if (form) {
+        form.addEventListener('submit', function(event) {
+          event.preventDefault();
+          launchBtn.disabled = true;
+          
+          const formData = new FormData(form);
+          const action = formData.get('action');
+
+          if (action === 'generate_config') {
+            notificationZone.innerHTML = `
+              <div class="bg-translucent p-6 rounded-2xl shadow-lg">
+                <div class="flex items-center">
+                  <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-[var(--tsar-accent)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <span>Génération de la configuration VPN...</span>
+                </div>
+              </div>`;
+            notificationZone.classList.remove('hidden');
+          } else {
+            notificationZone.innerHTML = `
+              <div class="bg-translucent p-6 rounded-2xl shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-[var(--tsar-accent)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span id="status-message">Lancement de la tâche...</span>
+                  </div>
+                  <button id="cancel-btn" class="px-4 py-1 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 transition">Annuler</button>
+                </div>
+                <pre id="log-output" class="bg-[#111] p-4 rounded-lg text-sm text-gray-300 whitespace-pre-wrap break-all scrollbar-thin"></pre>
+              </div>`;
+            notificationZone.classList.remove('hidden');
+            document.getElementById('cancel-btn').addEventListener('click', cancelJob);
+          }
+
+          fetch(form.getAttribute('action'), { method: 'POST', body: formData })
+            .then(response => response.json())
+            .then(data => {
+              if (data.job_id) {
+                currentJobId = data.job_id;
+                startLogStreaming(data.job_id);
+                pollFinalResult(data.job_id);
+              } else {
+                handleSuccess(data);
+              }
+            })
+            .catch(error => {
+              console.error('Erreur de soumission:', error);
+              showError('Erreur de soumission.');
+            });
+        });
+      }
+
+      function startLogStreaming(jobId) {
+        const logOutput = document.getElementById('log-output');
+        const statusMessage = document.getElementById('status-message');
+        statusMessage.textContent = 'Exécution en cours...';
+        if (logOutput) logOutput.innerHTML = '';
+
+        eventSource = new EventSource(`/job/stream/${jobId}`);
+        
+        eventSource.onmessage = function(event) {
+          const data = JSON.parse(event.data);
+          if (data.event === 'end') {
+            if (statusMessage) statusMessage.textContent = 'Tâche terminée. Récupération du résultat final...';
+            if (document.getElementById('cancel-btn')) document.getElementById('cancel-btn').style.display = 'none';
+            eventSource.close();
+          } else if (data.log && logOutput) {
+            logOutput.innerHTML += colorizeLogLine(data.log);
+            logOutput.scrollTop = logOutput.scrollHeight;
+          }
+        };
+
+        eventSource.onerror = function() {
+          if (eventSource) eventSource.close();
+        };
+      }
+
+      function cancelJob() {
+        if (!currentJobId) return;
+        const cancelBtn = document.getElementById('cancel-btn');
+        if (cancelBtn) cancelBtn.disabled = true;
+        const statusMessage = document.getElementById('status-message');
+        if (statusMessage) statusMessage.textContent = 'Annulation en cours...';
+        
+        fetch(`/job/cancel/${currentJobId}`, { method: 'POST' });
+      }
+
+      function pollFinalResult(jobId) {
+        if (pollingInterval) clearInterval(pollingInterval);
+
+        pollingInterval = setInterval(() => {
+          fetch(`/job/status/${jobId}`)
+            .then(response => response.json())
+            .then(data => {
+              if (data.state === 'SUCCESS' || data.state === 'FAILURE' || data.state === 'REVOKED') {
+                clearInterval(pollingInterval);
+                if (eventSource) eventSource.close();
+
+                if (data.state === 'SUCCESS') {
+                  handleSuccess(data.result);
+                } else if (data.state === 'FAILURE') {
+                  showError(data.error || 'Erreur lors de l\'exécution de la tâche.');
+                } else {
+                  showToast('Tâche annulée.', 'error');
+                  notificationZone.classList.add('hidden');
+                  launchBtn.disabled = false;
+                }
+              }
+            })
+            .catch(error => {
+              clearInterval(pollingInterval);
+              if (eventSource) eventSource.close();
+              showError('Erreur de communication pour le résultat final.');
+            });
+        }, 2000);
+      }
+
+      function handleSuccess(result) {
+          launchBtn.disabled = false;
+          
+          if (result.os === 'linux' && result.one_liner) {
+              notificationZone.innerHTML = `
+                  <div class="bg-translucent p-6 rounded-2xl shadow-lg text-left">
+                      <h3 class="text-lg font-semibold text-green-400 mb-2">Configuration Linux Prête !</h3>
+                      <p class="text-gray-300 mb-4">Exécutez la commande suivante sur votre machine Linux cible pour établir la connexion :</p>
+                      <div class="relative bg-[#111] p-4 rounded-lg">
+                        <pre id="linux-oneliner" class="text-white whitespace-pre-wrap break-all text-sm">${result.one_liner}</pre>
+                        <button onclick="copyToClipboard('linux-oneliner')" class="absolute top-2 right-2 p-2 rounded-md text-gray-400 hover:bg-[var(--tsar-accent)] hover:text-black transition-colors">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        </button>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-4">Note : Ce script est à usage unique et expirera dans 5 minutes.</p>
+                  </div>`;
+              notificationZone.classList.remove('hidden');
+          } else if (result.os === 'windows' && result.config_url) {
+              notificationZone.innerHTML = `
+                  <div class="bg-translucent p-6 rounded-2xl shadow-lg text-left">
+                      <h3 class="text-lg font-semibold text-green-400 mb-2">Configuration Windows Prête !</h3>
+                      <p class="text-gray-300 mb-4">Suivez ces étapes sur votre machine Windows cible :</p>
+                      <ol class="list-decimal list-inside space-y-3 text-gray-300">
+                          <li>
+                              Téléchargez le fichier de configuration :
+                              <a href="${result.config_url}" download="wg0.conf" class="inline-block ml-2 px-4 py-2 bg-[var(--tsar-accent)] text-black font-bold rounded-lg hover:bg-[var(--tsar-accent2)]">
+                                  Télécharger wg0.conf
+                              </a>
+                          </li>
+                          <li>Ouvrez l'application <strong>WireGuard</strong>.</li>
+                          <li>Cliquez sur <strong>"Importer le(s) tunnel(s) depuis un fichier"</strong> et sélectionnez le fichier <code>wg0.conf</code> que vous venez de télécharger.</li>
+                          <li>Cliquez sur le bouton <strong>"Activer"</strong> à côté du nouveau tunnel.</li>
+                      </ol>
+                      <p class="text-xs text-gray-500 mt-4">Note : Ce lien de configuration est à usage unique et expirera dans 5 minutes.</p>
+                  </div>`;
+              notificationZone.classList.remove('hidden');
+          } else if (result.report_id) {
+              notificationZone.classList.add('hidden');
+              showToast('Scan terminé ! Redirection...');
+              setTimeout(() => {
+                  if (result.project_id) {
+                    window.location.href = `/project/${result.project_id}#content-rapports`; // Redirection vers l'onglet rapports
+                  } else {
+                    window.location.href = "{{ url_for('routes.index') }}"; // Fallback vers le dashboard si pas de projet
+                  }
+              }, 1500);
+          } else if (result.error) {
+              showError(result.error);
+          } else {
+              notificationZone.classList.add('hidden');
+              showToast('Opération terminée avec succès.');
+          }
+      }
+      function showError(message) {
+        launchBtn.disabled = false;
+        notificationZone.classList.add('hidden');
+        showToast(message, 'error');
+      }
+    });
+  </script>
+</div>
+{% endblock %}

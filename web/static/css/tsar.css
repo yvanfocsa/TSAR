@@ -1,0 +1,197 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== PALETTE DE COULEURS ===== */
+:root {
+  --tsar-bg: #0f0f0f;
+  --tsar-card: #1e1e1e;
+  --tsar-accent: #e84545;
+  --tsar-accent2: #ff6666;
+  --tsar-text: #e5e5e5;
+  --tsar-accent-translucent: rgba(232, 69, 69, 0.3);
+}/* ===== STYLES DE BASE ===== */
+body {
+  background: var(--tsar-bg);
+  color: var(--tsar-text);
+  font-family: "Inter", "Segoe UI", sans-serif;
+  font-feature-settings: "ss01";
+}
+
+a {
+  color: var(--tsar-accent);
+  transition: color 0.2s;
+}
+a:hover {
+  color: var(--tsar-accent2);
+}
+
+/* ===== UTILITAIRES ===== */
+.bg-translucent {
+  background-color: rgba(30, 30, 30, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+/* --- Barre de défilement thématique --- */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--tsar-accent);
+  border-radius: 4px;
+  border: 2px solid var(--tsar-card);
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: var(--tsar-accent2);
+}
+
+
+/* ===== COMPOSANTS PERSONNALISÉS ===== */
+
+/* --- Correction pour les liens stylisés en boutons --- */
+a.bg-\[var\(--tsar-accent\)\],
+a.bg-\[var\(--tsar-accent\)\]:hover,
+a.bg-\[var\(--tsar-accent2\)\],
+a.bg-\[var\(--tsar-accent2\)\]:hover {
+  color: #000 !important;
+}
+
+/* --- Étoile Favoris --- */
+.fav-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  color: var(--tsar-accent) !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transition: transform 0.15s;
+}
+.fav-btn:hover {
+  transform: scale(1.15);
+}
+.fav-btn:active {
+  transform: scale(1.25);
+}
+
+/* --- Sélecteur de cible (STYLE FINAL) --- */
+.target-selector {
+  @apply relative;
+}
+.target-dropdown {
+  @apply absolute top-full left-0 right-0 mt-2 bg-gradient-to-b from-[#2a2a2a] to-[var(--tsar-card)] border border-[var(--tsar-accent)] rounded-lg z-20 max-h-72 overflow-y-auto scrollbar-thin;
+  box-shadow: 0 8px 30px var(--tsar-accent-translucent);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+.target-dropdown.hidden {
+  @apply opacity-0 pointer-events-none;
+  transform: translateY(-10px);
+}
+.target-dropdown-search {
+  @apply sticky top-0 w-full p-3 bg-[#0f0f0f] border-b-2 border-[var(--tsar-accent)] text-white placeholder-gray-500 focus:outline-none;
+  transition: border-color 0.2s;
+}
+.target-dropdown-group {
+  @apply px-4 pt-3 pb-2 text-sm font-bold text-[var(--tsar-accent)] border-b border-[#333];
+}
+.target-dropdown-item {
+  /* Indentation pour la hiérarchie */
+  @apply py-2 pl-8 pr-4 text-gray-300 cursor-pointer border-l-2 border-transparent;
+  transition: all 0.2s ease-in-out;
+}
+.target-dropdown-item:hover {
+  background: var(--tsar-accent-translucent);
+  border-left-color: var(--tsar-accent);
+  color: white;
+}
+.target-dropdown-item small {
+  @apply text-gray-500 ml-2;
+  transition: color 0.2s;
+}
+.target-dropdown-item:hover small {
+  @apply text-gray-400;
+}
+
+/* --- Module VPN : Affichage IP --- */
+.public-ip-display {
+  @apply bg-[#111] border border-[#333] rounded-lg p-3 flex items-center justify-between mb-2;
+}
+.copy-ip-btn {
+  @apply p-2 rounded-md text-gray-400 hover:bg-[var(--tsar-accent)] hover:text-black transition-colors;
+}
+
+/* --- Page Veille --- */
+.veille-summary p {
+  border-bottom: 1px solid var(--tsar-accent);
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+}
+.veille-summary p:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* --- Page Rapports --- */
+.report-card {
+  overflow: hidden;
+  max-width: 100%;
+}
+.report-card h3 {
+  overflow-wrap: break-word;
+}
+
+/* --- Notifications Toast --- */
+.toast-container {
+  @apply fixed top-5 right-5 z-50 space-y-3;
+}
+.toast {
+  @apply flex items-center w-full max-w-xs p-4 text-gray-200 bg-translucent rounded-lg shadow-lg border-l-4;
+  animation: toast-in 0.5s ease-out;
+}
+.toast-success { @apply border-[var(--tsar-accent)]; }
+.toast-error { @apply border-red-500; }
+@keyframes toast-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* --- Coloration syntaxique des logs --- */
+.log-critical { @apply text-purple-400 font-bold; }
+.log-high { @apply text-red-400 font-bold; }
+.log-medium { @apply text-orange-400; }
+.log-low { @apply text-yellow-400; }
+.log-info { @apply text-blue-400; }
+.log-success { @apply text-green-400; }
+.log-error { @apply text-red-500; }
+.log-cve { @apply bg-red-900 text-red-200 px-1 rounded; }
+.log-ip { @apply text-cyan-400; }
+
+/* --- Onglets modernes pour la page de détail du projet --- */
+.tab-btn-line {
+  @apply flex items-center gap-2 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm cursor-pointer;
+  @apply border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500;
+  transition: all 0.2s ease-in-out;
+}
+.tab-btn-line.active {
+  @apply border-[var(--tsar-accent)] text-[var(--tsar-accent)];
+}
+
+/* --- Chronologie moderne pour la page de détail du projet --- */
+#timeline-container::before {
+  content: '';
+  @apply absolute left-4 top-2 bottom-2 w-0.5 bg-gray-700 rounded;
+}
+.timeline-item-modern {
+  @apply relative pl-12 pb-8;
+}
+.timeline-dot-modern {
+  @apply absolute left-2 top-0 flex h-5 w-5 items-center justify-center;
+}
+.timeline-content-modern {
+  @apply ml-4;
+}

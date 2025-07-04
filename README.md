@@ -162,10 +162,46 @@ MODULE = {
 
 ## 🏗️ Structure du Projet
 
--   `docker-compose.yaml`: Définit les services (web, worker, db, redis, toolbox).
--   `modules/`: Contient les définitions de tous les outils de pentest.
--   `toolbox/`: `Dockerfile` pour construire l'image Kali Linux avec tous les outils nécessaires.
--   `web/`: Application Flask, templates, et logique métier.
-    -   `web/app/routes.py`: Les routes de l'application Flask.
-    -   `web/app/tasks.py`: Les tâches Celery qui exécutent les scans.
-    -   `web/templates/`: Les templates Jinja2 pour l'interface.
+`docker-compose.yaml` : Le chef d'orchestre de TSAR, il définit et lance tous les services Docker (web, workers, db, redis, toolbox).
+`modules/` : La boîte à outils magique de TSAR, contenant toutes les définitions des outils de pentest.
+  - `aggressive_audit.py` : Module d'audit complet (Nmap, Nuclei, Metasploit).
+  - `code_secrets_scanner.py` : Module de scan de secrets GitHub (Gitleaks).
+  - `iot_pivot.py` : Module de gestion de pivot VPN WireGuard et d'audits réseau interne.
+  - `metasploit_scan.py` : Module de scan de vulnérabilités Metasploit auxiliaire.
+  - `osint_global.py` : Module de recherche OSINT de pseudo (GoSearch).
+  - `reporting_global.py` : Module générateur de rapports de synthèse multi-outils.
+  - `subdomain_takeover.py` : Module de détection de "subdomain takeover".
+  - `vuln_global.py` : Module d'évaluation de vulnérabilités web complet.
+`toolbox/` : Le laboratoire de pentest portable, un conteneur Docker avec tous les outils.
+  - `Dockerfile` : La recette pour construire l'image Kali Linux des outils nécessaires.
+`web/` : Le cerveau de TSAR, c'est l'application Flask, ses templates et sa logique métier.
+  - `Dockerfile` : La recette pour construire l'image Docker de l'application Flask et des workers.
+  - `requirements.txt` : La liste des bibliothèques Python nécessaires à l'application.
+  - `app/` : Le cœur de l'application Flask.
+    - `__init__.py` : Lance l'app Flask, connecte la BDD, l'authentification et prépare Celery.
+    - `celery_app.py` : Le point d'entrée de Celery pour les workers.
+    - `config.py` : Gère les réglages de l'application Flask.
+    - `models.py` : Les plans de la base de données (Projets, Rapports, Utilisateurs, etc.).
+    - `modules.py` : Le bibliothécaire des modules, il les charge et les rend accessibles.
+    - `pdf.py` : La machine à imprimer, contient les fonctions de génération de rapports PDF.
+    - `pdf_crypto.py` : Le coffre-fort des rapports, gère leur chiffrement/déchiffrement.
+    - `routes.py` : La carte routière de l'application, définit toutes les pages et interactions.
+    - `tasks.py` : Le centre de commande des opérations lourdes (scans, rapports, CVE) exécutées en arrière-plan.
+  - `static/` : Contient les fichiers qui donnent le "look" à TSAR.
+    - `css/` : Les styles CSS.
+      - `tsar.css` : Le fichier de style principal de l'interface.
+  - `templates/` : La galerie d'art, contient tous les modèles HTML des pages web.
+    - `_form_field.html` : Un petit modèle réutilisable pour afficher un champ de formulaire.
+    - `_macros.html` : Des "morceaux" de code HTML réutilisables (sélecteur de cibles, etc.).
+    - `base.html` : Le squelette de toutes les pages (navigation, fond animé, scripts globaux).
+    - `cve_analysis.html` : La page pour analyser les CVEs (par ID ou depuis un rapport).
+    - `dashboard.html` : Votre page d'accueil avec les métriques et l'historique.
+    - `guide.html` : Le mode d'emploi détaillé de TSAR.
+    - `module_launcher.html` : La page de lancement d'un module spécifique.
+    - `modules.html` : La vitrine de tous les modules disponibles.
+    - `profile.html` : La page de votre compte utilisateur (nom, avatar, stats).
+    - `project_detail.html` : La page détaillée d'un projet (vulnérabilités, rapports, documents, synthèse).
+    - `projects.html` : La liste et la gestion de tous vos projets.
+    - `scheduled.html` : La page pour planifier des tâches automatiques.
+    - `stdout_report.html` : Le modèle pour générer le contenu des rapports PDF.
+    - `veille.html` : La page d'information cyber (flux RSS).

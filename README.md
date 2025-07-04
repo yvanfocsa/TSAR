@@ -1,4 +1,4 @@
-# TSAR Toolbox - Plateforme de Pentest & Automatisation
+# TSAR - Toolbox for Security & Automated Reporting
 
 TSAR (Toolbox for Security & Automated Reporting) est une plateforme de test d'intrusion web, modulaire et automatisée. Elle est conçue pour centraliser, exécuter et rapporter les résultats d'une large gamme d'outils de sécurité, le tout via une interface web moderne et réactive.
 
